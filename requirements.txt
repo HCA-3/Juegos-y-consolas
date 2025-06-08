@@ -1,18 +1,4 @@
-# GameHub - Sistema de Gestión de Videojuegos
-# Dependencias necesarias para ejecutar el proyecto
-
-# Framework web
-Flask==2.3.3
-Flask-SQLAlchemy==3.0.5
-Flask-CORS==4.0.0
-
-# Base de datos
-SQLAlchemy==2.0.21
-
-# Utilidades
-requests==2.31.0
-Werkzeug==2.3.7
-
-# Desarrollo (opcional)
-python-dotenv==1.0.0
-
+requirements.txtfastapi==0.95.2
+uvicorn==0.22.0
+python-multipart==0.0.6
+Jinja2==3.1.2
