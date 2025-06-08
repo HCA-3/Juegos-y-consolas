@@ -1,28 +1,8 @@
-# Dependencias principales
-fastapi==0.95.2
-uvicorn==0.22.0
-python-multipart==0.0.6  # Para manejo de uploads de archivos
-
-# Base de datos y ORM
-sqlalchemy==2.0.15
-psycopg2-binary==2.9.6  # Para PostgreSQL (opcional para producción)
-aiosqlite==0.18.0  # Para SQLite (desarrollo)
-
-# Procesamiento de imágenes
-pillow==9.5.0  # Para procesamiento de imágenes
-python-magic==0.4.27  # Para validación de tipos de archivo
-
-# Templates y frontend
-jinja2==3.1.2
-httpx==0.24.1  # Cliente HTTP async
-
-# Utilidades
-pydantic==1.10.7
-pydantic-settings==2.0.3
-python-dotenv==1.0.0  # Para manejo de variables de entorno
-python-dateutil==2.8.2  # Manejo de fechas
-
-# Testing (opcional para desarrollo)
-pytest==7.3.1
-pytest-asyncio==0.21.0
-httpx==0.24.1
+fastapi==0.108.0
+uvicorn==0.25.0
+python-multipart==0.0.6
+sqlalchemy==2.0.23
+pydantic-settings==2.2.1
+pydantic==2.6.4
+aiosqlite==0.20.0
+pillow==10.3.0  # Versión más reciente con wheels precompilados

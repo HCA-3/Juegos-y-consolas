@@ -1,9 +1,7 @@
-from sqlalchemy import Column, Integer, String, Float, ForeignKey, DateTime, Boolean, LargeBinary, JSON, Text
-from sqlalchemy.orm import relationship, declarative_base
+from sqlalchemy import Column, Integer, String, Float, ForeignKey, DateTime, Boolean, LargeBinary, Text
+from sqlalchemy.orm import relationship
 from datetime import datetime
-from typing import Optional
-
-Base = declarative_base()
+from app.database.session import Base
 
 class Juego(Base):
     __tablename__ = "juegos"
@@ -17,23 +15,19 @@ class Juego(Base):
     descripcion = Column(Text, nullable=True)
     consola_id = Column(Integer, ForeignKey("consolas.id"), nullable=False)
     
-    # Campos para almacenamiento de imágenes
+    # Campos para imágenes
     imagen_data = Column(LargeBinary, nullable=False)
     thumbnail_data = Column(LargeBinary, nullable=False)
-    imagen_type = Column(String(10), nullable=False)  # MIME type (image/jpeg, etc.)
+    imagen_type = Column(String(10), nullable=False)
     
-    # Metadata y control
+    # Metadata
     fecha_creacion = Column(DateTime, default=datetime.utcnow, nullable=False)
     fecha_actualizacion = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     activo = Column(Boolean, default=True, nullable=False)
     
     # Relaciones
     consola = relationship("Consola", back_populates="juegos")
-    historiales = relationship("Historial", back_populates="juego", cascade="all, delete-orphan")
-
-    def __repr__(self):
-        return f"<Juego(id={self.id}, titulo='{self.titulo}')>"
-
+    historiales = relationship("Historial", back_populates="juego")
 
 class Consola(Base):
     __tablename__ = "consolas"
@@ -46,24 +40,20 @@ class Consola(Base):
     precio = Column(Float, nullable=True)
     especificaciones = Column(Text, nullable=True)
     
-    # Campos para almacenamiento de imágenes
+    # Campos para imágenes
     imagen_data = Column(LargeBinary, nullable=False)
     thumbnail_data = Column(LargeBinary, nullable=False)
     imagen_type = Column(String(10), nullable=False)
     
-    # Metadata y control
+    # Metadata
     fecha_creacion = Column(DateTime, default=datetime.utcnow, nullable=False)
     fecha_actualizacion = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     activo = Column(Boolean, default=True, nullable=False)
     
     # Relaciones
-    juegos = relationship("Juego", back_populates="consola", cascade="all, delete-orphan")
-    accesorios = relationship("Accesorio", back_populates="consola", cascade="all, delete-orphan")
-    historiales = relationship("Historial", back_populates="consola", cascade="all, delete-orphan")
-
-    def __repr__(self):
-        return f"<Consola(id={self.id}, nombre='{self.nombre}')>"
-
+    juegos = relationship("Juego", back_populates="consola")
+    accesorios = relationship("Accesorio", back_populates="consola")
+    historiales = relationship("Historial", back_populates="consola")
 
 class Accesorio(Base):
     __tablename__ = "accesorios"
@@ -75,36 +65,32 @@ class Accesorio(Base):
     precio = Column(Float, nullable=False)
     consola_id = Column(Integer, ForeignKey("consolas.id"), nullable=False)
     
-    # Campos para almacenamiento de imágenes
+    # Campos para imágenes
     imagen_data = Column(LargeBinary, nullable=False)
     thumbnail_data = Column(LargeBinary, nullable=False)
     imagen_type = Column(String(10), nullable=False)
     
-    # Metadata y control
+    # Metadata
     fecha_creacion = Column(DateTime, default=datetime.utcnow, nullable=False)
     fecha_actualizacion = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     activo = Column(Boolean, default=True, nullable=False)
     
     # Relaciones
     consola = relationship("Consola", back_populates="accesorios")
-    historiales = relationship("Historial", back_populates="accesorio", cascade="all, delete-orphan")
-
-    def __repr__(self):
-        return f"<Accesorio(id={self.id}, nombre='{self.nombre}')>"
-
+    historiales = relationship("Historial", back_populates="accesorio")
 
 class Historial(Base):
     __tablename__ = "historial"
     
     id = Column(Integer, primary_key=True, index=True)
-    tipo_entidad = Column(String(20), nullable=False)  # 'juego', 'consola', 'accesorio'
-    entidad_id = Column(Integer, nullable=False)  # ID original del elemento
-    accion = Column(String(20), nullable=False)  # 'eliminacion', 'actualizacion', 'creacion'
-    datos = Column(JSON, nullable=False)  # JSON con snapshot de los datos
+    tipo_entidad = Column(String(20), nullable=False)
+    entidad_id = Column(Integer, nullable=False)
+    accion = Column(String(20), nullable=False)
+    datos = Column(Text, nullable=False)
     fecha_accion = Column(DateTime, default=datetime.utcnow, nullable=False)
-    usuario = Column(String(50), nullable=True)  # Para futura implementación de auth
+    usuario = Column(String(50), nullable=True)
     
-    # Claves foráneas condicionales
+    # Claves foráneas
     juego_id = Column(Integer, ForeignKey("juegos.id"), nullable=True)
     consola_id = Column(Integer, ForeignKey("consolas.id"), nullable=True)
     accesorio_id = Column(Integer, ForeignKey("accesorios.id"), nullable=True)
@@ -113,71 +99,3 @@ class Historial(Base):
     juego = relationship("Juego", back_populates="historiales")
     consola = relationship("Consola", back_populates="historiales")
     accesorio = relationship("Accesorio", back_populates="historiales")
-
-    def __repr__(self):
-        return f"<Historial(id={self.id}, accion='{self.accion}', entidad='{self.tipo_entidad}')>"
-
-
-class Catalogo(Base):
-    __tablename__ = "catalogos"
-    
-    id = Column(Integer, primary_key=True, index=True)
-    nombre = Column(String(100), nullable=False)
-    descripcion = Column(Text, nullable=True)
-    fecha_creacion = Column(DateTime, default=datetime.utcnow, nullable=False)
-    activo = Column(Boolean, default=True, nullable=False)
-    
-    # Relación muchos-a-muchos con juegos
-    juegos = relationship("JuegoCatalogo", back_populates="catalogo")
-
-
-class JuegoCatalogo(Base):
-    __tablename__ = "juego_catalogo"
-    
-    id = Column(Integer, primary_key=True, index=True)
-    juego_id = Column(Integer, ForeignKey("juegos.id"), nullable=False)
-    catalogo_id = Column(Integer, ForeignKey("catalogos.id"), nullable=False)
-    fecha_agregado = Column(DateTime, default=datetime.utcnow, nullable=False)
-    
-    # Relaciones
-    juego = relationship("Juego")
-    catalogo = relationship("Catalogo", back_populates="juegos")
-
-
-class Comparacion(Base):
-    __tablename__ = "comparaciones"
-    
-    id = Column(Integer, primary_key=True, index=True)
-    titulo = Column(String(100), nullable=False)
-    descripcion = Column(Text, nullable=True)
-    fecha_creacion = Column(DateTime, default=datetime.utcnow, nullable=False)
-    usuario = Column(String(50), nullable=True)  # Para futura implementación de auth
-    
-    # Relaciones (muchos-a-muchos)
-    juegos = relationship("ComparacionJuego", back_populates="comparacion")
-    consolas = relationship("ComparacionConsola", back_populates="comparacion")
-    accesorios = relationship("ComparacionAccesorio", back_populates="comparacion")
-
-
-class ComparacionJuego(Base):
-    __tablename__ = "comparacion_juego"
-    
-    id = Column(Integer, primary_key=True, index=True)
-    comparacion_id = Column(Integer, ForeignKey("comparaciones.id"), nullable=False)
-    juego_id = Column(Integer, ForeignKey("juegos.id"), nullable=False)
-    comentario = Column(Text, nullable=True)
-    
-    # Relaciones
-    comparacion = relationship("Comparacion", back_populates="juegos")
-    juego = relationship("Juego")
-
-
-# Modelos similares para ComparacionConsola y ComparacionAccesorio
-class ComparacionConsola(Base):
-    __tablename__ = "comparacion_consola"
-    # ... (estructura similar a ComparacionJuego)
-
-
-class ComparacionAccesorio(Base):
-    __tablename__ = "comparacion_accesorio"
-    # ... (estructura similar a ComparacionJuego)
