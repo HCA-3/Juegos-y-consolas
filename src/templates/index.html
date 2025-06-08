@@ -1,0 +1,535 @@
+{% extends "base.html" %}
+
+{% block title %}GameHub - Sistema de Gestión de Videojuegos{% endblock %}
+
+{% block extra_css %}
+<style>
+.hero-section {
+    background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-tertiary) 100%);
+    padding: var(--spacing-xxl) 0;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+}
+
+.hero-section::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grid" width="10" height="10" patternUnits="userSpaceOnUse"><path d="M 10 0 L 0 0 0 10" fill="none" stroke="%2300ff88" stroke-width="0.5" opacity="0.3"/></pattern></defs><rect width="100" height="100" fill="url(%23grid)"/></svg>');
+    opacity: 0.1;
+}
+
+.hero-content {
+    position: relative;
+    z-index: 1;
+}
+
+.hero-title {
+    font-family: var(--font-accent);
+    font-size: 3.5rem;
+    font-weight: 900;
+    margin-bottom: var(--spacing-md);
+    background: linear-gradient(45deg, var(--primary-color), var(--accent-color));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    animation: glow 2s ease-in-out infinite alternate;
+}
+
+@keyframes glow {
+    from { filter: drop-shadow(0 0 10px var(--primary-color)); }
+    to { filter: drop-shadow(0 0 20px var(--primary-color)); }
+}
+
+.hero-subtitle {
+    font-size: 1.3rem;
+    color: var(--text-secondary);
+    margin-bottom: var(--spacing-xl);
+    max-width: 600px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.hero-actions {
+    display: flex;
+    gap: var(--spacing-md);
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: var(--spacing-lg);
+    margin: var(--spacing-xxl) 0;
+}
+
+.stat-card {
+    background: var(--bg-card);
+    border: 2px solid var(--bg-tertiary);
+    border-radius: var(--border-radius-lg);
+    padding: var(--spacing-xl);
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+    transition: var(--transition-fast);
+}
+
+.stat-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, var(--primary-color), var(--accent-color));
+}
+
+.stat-card:hover {
+    transform: translateY(-5px);
+    border-color: var(--primary-color);
+    box-shadow: var(--shadow-lg);
+}
+
+.stat-icon {
+    font-size: 3rem;
+    color: var(--primary-color);
+    margin-bottom: var(--spacing-md);
+}
+
+.stat-number {
+    font-family: var(--font-accent);
+    font-size: 2.5rem;
+    font-weight: 700;
+    color: var(--primary-color);
+    margin-bottom: var(--spacing-xs);
+}
+
+.stat-label {
+    color: var(--text-secondary);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.section-title {
+    font-family: var(--font-accent);
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--primary-color);
+    text-align: center;
+    margin: var(--spacing-xxl) 0 var(--spacing-xl);
+    position: relative;
+}
+
+.section-title::after {
+    content: '';
+    position: absolute;
+    bottom: -10px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 100px;
+    height: 3px;
+    background: linear-gradient(90deg, var(--primary-color), var(--accent-color));
+    border-radius: 2px;
+}
+
+.featured-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: var(--spacing-lg);
+    margin-bottom: var(--spacing-xxl);
+}
+
+.quick-actions {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: var(--spacing-md);
+    margin: var(--spacing-xxl) 0;
+}
+
+.action-card {
+    background: var(--bg-card);
+    border: 2px solid var(--bg-tertiary);
+    border-radius: var(--border-radius-lg);
+    padding: var(--spacing-lg);
+    text-align: center;
+    text-decoration: none;
+    color: var(--text-primary);
+    transition: var(--transition-fast);
+    position: relative;
+    overflow: hidden;
+}
+
+.action-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(0, 255, 136, 0.1), transparent);
+    transition: var(--transition-normal);
+}
+
+.action-card:hover {
+    border-color: var(--primary-color);
+    transform: translateY(-3px);
+    box-shadow: var(--shadow-lg);
+    color: var(--text-primary);
+}
+
+.action-card:hover::before {
+    left: 100%;
+}
+
+.action-icon {
+    font-size: 2.5rem;
+    color: var(--primary-color);
+    margin-bottom: var(--spacing-md);
+}
+
+.action-title {
+    font-weight: 600;
+    margin-bottom: var(--spacing-xs);
+}
+
+.action-description {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+}
+
+.loading-skeleton {
+    background: linear-gradient(90deg, var(--bg-tertiary) 25%, var(--bg-card) 50%, var(--bg-tertiary) 75%);
+    background-size: 200% 100%;
+    animation: loading 1.5s infinite;
+    border-radius: var(--border-radius);
+}
+
+@keyframes loading {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+}
+
+@media (max-width: 768px) {
+    .hero-title {
+        font-size: 2.5rem;
+    }
+    
+    .hero-actions {
+        flex-direction: column;
+        align-items: center;
+    }
+    
+    .stats-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .featured-grid {
+        grid-template-columns: 1fr;
+    }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <!-- Hero Section -->
+    <section class="hero-section">
+        <div class="hero-content">
+            <h1 class="hero-title">GameHub</h1>
+            <p class="hero-subtitle">
+                Tu sistema completo de gestión de videojuegos. Organiza, compara y descubre 
+                los mejores juegos, consolas y accesorios en un solo lugar.
+            </p>
+            <div class="hero-actions">
+                <a href="/catalogo" class="btn btn-primary btn-lg">
+                    <i class="fas fa-th-large"></i>
+                    Explorar Catálogo
+                </a>
+                <a href="/juegos/crear" class="btn btn-outline btn-lg">
+                    <i class="fas fa-plus"></i>
+                    Agregar Juego
+                </a>
+                <a href="/comparacion" class="btn btn-secondary btn-lg">
+                    <i class="fas fa-balance-scale"></i>
+                    Comparar Productos
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Estadísticas -->
+    <section class="stats-section">
+        <h2 class="section-title">Estadísticas del Sistema</h2>
+        <div class="stats-grid" id="statsGrid">
+            <!-- Las estadísticas se cargarán dinámicamente -->
+            <div class="stat-card">
+                <div class="loading-skeleton" style="height: 60px; margin-bottom: 1rem;"></div>
+                <div class="loading-skeleton" style="height: 40px; margin-bottom: 0.5rem;"></div>
+                <div class="loading-skeleton" style="height: 20px;"></div>
+            </div>
+            <div class="stat-card">
+                <div class="loading-skeleton" style="height: 60px; margin-bottom: 1rem;"></div>
+                <div class="loading-skeleton" style="height: 40px; margin-bottom: 0.5rem;"></div>
+                <div class="loading-skeleton" style="height: 20px;"></div>
+            </div>
+            <div class="stat-card">
+                <div class="loading-skeleton" style="height: 60px; margin-bottom: 1rem;"></div>
+                <div class="loading-skeleton" style="height: 40px; margin-bottom: 0.5rem;"></div>
+                <div class="loading-skeleton" style="height: 20px;"></div>
+            </div>
+            <div class="stat-card">
+                <div class="loading-skeleton" style="height: 60px; margin-bottom: 1rem;"></div>
+                <div class="loading-skeleton" style="height: 40px; margin-bottom: 0.5rem;"></div>
+                <div class="loading-skeleton" style="height: 20px;"></div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Productos Destacados -->
+    <section class="featured-section">
+        <h2 class="section-title">Productos Destacados</h2>
+        <div class="featured-grid" id="featuredGrid">
+            <!-- Los productos destacados se cargarán dinámicamente -->
+            <div class="card">
+                <div class="loading-skeleton" style="height: 200px; margin-bottom: 1rem;"></div>
+                <div class="loading-skeleton" style="height: 30px; margin-bottom: 0.5rem;"></div>
+                <div class="loading-skeleton" style="height: 20px; margin-bottom: 1rem;"></div>
+                <div class="loading-skeleton" style="height: 80px;"></div>
+            </div>
+            <div class="card">
+                <div class="loading-skeleton" style="height: 200px; margin-bottom: 1rem;"></div>
+                <div class="loading-skeleton" style="height: 30px; margin-bottom: 0.5rem;"></div>
+                <div class="loading-skeleton" style="height: 20px; margin-bottom: 1rem;"></div>
+                <div class="loading-skeleton" style="height: 80px;"></div>
+            </div>
+            <div class="card">
+                <div class="loading-skeleton" style="height: 200px; margin-bottom: 1rem;"></div>
+                <div class="loading-skeleton" style="height: 30px; margin-bottom: 0.5rem;"></div>
+                <div class="loading-skeleton" style="height: 20px; margin-bottom: 1rem;"></div>
+                <div class="loading-skeleton" style="height: 80px;"></div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Acciones Rápidas -->
+    <section class="quick-actions-section">
+        <h2 class="section-title">Acciones Rápidas</h2>
+        <div class="quick-actions">
+            <a href="/juegos" class="action-card">
+                <div class="action-icon">
+                    <i class="fas fa-gamepad"></i>
+                </div>
+                <div class="action-title">Gestionar Juegos</div>
+                <div class="action-description">Ver, agregar y editar juegos</div>
+            </a>
+            
+            <a href="/consolas" class="action-card">
+                <div class="action-icon">
+                    <i class="fas fa-tv"></i>
+                </div>
+                <div class="action-title">Gestionar Consolas</div>
+                <div class="action-description">Administrar consolas de videojuegos</div>
+            </a>
+            
+            <a href="/accesorios" class="action-card">
+                <div class="action-icon">
+                    <i class="fas fa-headset"></i>
+                </div>
+                <div class="action-title">Gestionar Accesorios</div>
+                <div class="action-description">Controlar accesorios gaming</div>
+            </a>
+            
+            <a href="/catalogo/buscar" class="action-card">
+                <div class="action-icon">
+                    <i class="fas fa-search"></i>
+                </div>
+                <div class="action-title">Búsqueda Avanzada</div>
+                <div class="action-description">Buscar en todo el catálogo</div>
+            </a>
+            
+            <a href="/comparacion" class="action-card">
+                <div class="action-icon">
+                    <i class="fas fa-balance-scale"></i>
+                </div>
+                <div class="action-title">Comparar Productos</div>
+                <div class="action-description">Comparar juegos, consolas y accesorios</div>
+            </a>
+            
+            <a href="/estadisticas" class="action-card">
+                <div class="action-icon">
+                    <i class="fas fa-chart-bar"></i>
+                </div>
+                <div class="action-title">Ver Estadísticas</div>
+                <div class="action-description">Análisis y reportes del sistema</div>
+            </a>
+        </div>
+    </section>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Cargar datos del dashboard
+document.addEventListener('DOMContentLoaded', async () => {
+    await cargarEstadisticas();
+    await cargarProductosDestacados();
+});
+
+async function cargarEstadisticas() {
+    try {
+        const response = await CatalogoAPI.obtenerEstadisticas();
+        
+        if (response.success) {
+            renderizarEstadisticas(response.data);
+        } else {
+            throw new Error(response.error);
+        }
+    } catch (error) {
+        console.error('Error cargando estadísticas:', error);
+        document.getElementById('statsGrid').innerHTML = `
+            <div class="col-12">
+                <div class="alert alert-danger">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    Error al cargar las estadísticas: ${error.message}
+                </div>
+            </div>
+        `;
+    }
+}
+
+function renderizarEstadisticas(data) {
+    const statsGrid = document.getElementById('statsGrid');
+    const { resumen } = data;
+    
+    statsGrid.innerHTML = `
+        <div class="stat-card">
+            <div class="stat-icon">
+                <i class="fas fa-gamepad"></i>
+            </div>
+            <div class="stat-number">${resumen.total_juegos || 0}</div>
+            <div class="stat-label">Juegos</div>
+        </div>
+        
+        <div class="stat-card">
+            <div class="stat-icon">
+                <i class="fas fa-tv"></i>
+            </div>
+            <div class="stat-number">${resumen.total_consolas || 0}</div>
+            <div class="stat-label">Consolas</div>
+        </div>
+        
+        <div class="stat-card">
+            <div class="stat-icon">
+                <i class="fas fa-headset"></i>
+            </div>
+            <div class="stat-number">${resumen.total_accesorios || 0}</div>
+            <div class="stat-label">Accesorios</div>
+        </div>
+        
+        <div class="stat-card">
+            <div class="stat-icon">
+                <i class="fas fa-boxes"></i>
+            </div>
+            <div class="stat-number">${resumen.total_productos || 0}</div>
+            <div class="stat-label">Total Productos</div>
+        </div>
+    `;
+}
+
+async function cargarProductosDestacados() {
+    try {
+        const response = await CatalogoAPI.obtenerDestacados();
+        
+        if (response.success) {
+            renderizarProductosDestacados(response.data);
+        } else {
+            throw new Error(response.error);
+        }
+    } catch (error) {
+        console.error('Error cargando productos destacados:', error);
+        document.getElementById('featuredGrid').innerHTML = `
+            <div class="col-12">
+                <div class="alert alert-warning">
+                    <i class="fas fa-info-circle"></i>
+                    No se pudieron cargar los productos destacados
+                </div>
+            </div>
+        `;
+    }
+}
+
+function renderizarProductosDestacados(data) {
+    const featuredGrid = document.getElementById('featuredGrid');
+    let html = '';
+    
+    // Juegos destacados
+    if (data.juegos_destacados && data.juegos_destacados.length > 0) {
+        data.juegos_destacados.slice(0, 2).forEach(juego => {
+            html += Renderers.renderCard(juego, 'juego');
+        });
+    }
+    
+    // Consolas destacadas
+    if (data.consolas_destacadas && data.consolas_destacadas.length > 0) {
+        data.consolas_destacadas.slice(0, 1).forEach(consola => {
+            html += Renderers.renderCard(consola, 'consola');
+        });
+    }
+    
+    // Accesorios destacados
+    if (data.accesorios_destacados && data.accesorios_destacados.length > 0) {
+        data.accesorios_destacados.slice(0, 1).forEach(accesorio => {
+            html += Renderers.renderCard(accesorio, 'accesorio');
+        });
+    }
+    
+    if (html === '') {
+        html = `
+            <div class="col-12">
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle"></i>
+                    No hay productos destacados disponibles. 
+                    <a href="/juegos/crear" class="btn btn-sm btn-primary">Agregar algunos productos</a>
+                </div>
+            </div>
+        `;
+    }
+    
+    featuredGrid.innerHTML = html;
+}
+
+// Funciones globales para las acciones de las cards
+window.verDetalle = function(tipo, id) {
+    window.location.href = `/${tipo}s/${id}`;
+};
+
+window.editarItem = function(tipo, id) {
+    window.location.href = `/${tipo}s/${id}/editar`;
+};
+
+window.eliminarItem = async function(tipo, id) {
+    const servicios = {
+        juego: JuegosAPI,
+        consola: ConsolasAPI,
+        accesorio: AccesoriosAPI
+    };
+    
+    const servicio = servicios[tipo];
+    if (!servicio) return;
+    
+    const eliminado = await DataUtils.eliminarDatos(servicio, id);
+    if (eliminado) {
+        // Recargar productos destacados
+        await cargarProductosDestacados();
+        await cargarEstadisticas();
+    }
+};
+</script>
+{% endblock %}
+

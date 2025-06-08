@@ -1,8 +1,18 @@
-fastapi==0.108.0
-uvicorn==0.25.0
-python-multipart==0.0.6
-sqlalchemy==2.0.23
-pydantic-settings==2.2.1
-pydantic==2.6.4
-aiosqlite==0.20.0
-pillow==10.3.0  # Versión más reciente con wheels precompilados
+# GameHub - Sistema de Gestión de Videojuegos
+# Dependencias necesarias para ejecutar el proyecto
+
+# Framework web
+Flask==2.3.3
+Flask-SQLAlchemy==3.0.5
+Flask-CORS==4.0.0
+
+# Base de datos
+SQLAlchemy==2.0.21
+
+# Utilidades
+requests==2.31.0
+Werkzeug==2.3.7
+
+# Desarrollo (opcional)
+python-dotenv==1.0.0
+
