@@ -14,8 +14,9 @@ app = FastAPI(
     description="Sistema completo con búsqueda, gestión y comparación de juegos, consolas y accesorios"
 )
 
+# Configuración para Render
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DB_PATH = os.path.join(BASE_DIR, "database", "juegos.db")
+DB_PATH = os.path.join(BASE_DIR, "juegos.db")
 UPLOADS_DIR = os.path.join(BASE_DIR, "static", "uploads")
 
 os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
@@ -163,8 +164,6 @@ def init_db():
     conn.commit()
     conn.close()
 
-init_db()
-
 def get_db():
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
@@ -250,6 +249,10 @@ def obtener_datos_completos():
         "comparaciones": comparaciones,
         "historial": historial
     }
+
+@app.on_event("startup")
+async def startup():
+    init_db()
 
 @app.get("/", response_class=HTMLResponse)
 async def inicio(request: Request):
@@ -870,4 +873,5 @@ async def obtener_historial(clave: str = Query(...)):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    port = int(os.environ.get("PORT", 8000))
+    uvicorn.run(app, host="0.0.0.0", port=port)
