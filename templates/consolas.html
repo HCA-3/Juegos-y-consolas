@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Consolas - API Videojuegos</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <h1>API de Videojuegos</h1>
+            <nav class="nav">
+                <a href="/" class="nav-link">Juegos</a>
+                <a href="/consolas" class="nav-link active">Consolas</a>
+                <a href="/accesorios" class="nav-link">Accesorios</a>
+                <a href="/comparaciones" class="nav-link">Comparaciones</a>
+            </nav>
+        </header>
+
+        <main class="main-content">
+            <section class="section">
+                <h2>Listado de Consolas</h2>
+                <div id="consolas-container" class="grid-container">
+                    <!-- Consolas se cargarán aquí -->
+                </div>
+            </section>
+
+            <section class="section">
+                <h2>Añadir Nueva Consola</h2>
+                <form id="consola-form" class="form" enctype="multipart/form-data">
+                    <!-- Campos del formulario -->
+                </form>
+            </section>
+        </main>
+    </div>
+    <script src="/static/script.js"></script>
+</body>
+</html>

@@ -3,23 +3,183 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistema de Videojuegos</title>
-    <link rel="stylesheet" href="/static/css/styles.css">
+    <title>API Minecraft de Videojuegos</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <style>
+        @font-face {
+            font-family: 'Minecraft';
+            src: url('https://fonts.cdnfonts.com/css/minecraft-4');
+        }
+        body {
+            font-family: 'Minecraft', sans-serif;
+        }
+    </style>
 </head>
 <body>
-    <header>
-        <h1>Sistema de Gestión de Videojuegos</h1>
-    </header>
-    <main>
-        <section>
-            <h2>Endpoints disponibles</h2>
-            <ul>
-                <li><strong>Juegos:</strong> /juegos/</li>
-                <li><strong>Consolas:</strong> /consolas/</li>
-                <li><strong>Accesorios:</strong> /accesorios/</li>
-                <li><strong>Historial:</strong> /historial/</li>
-            </ul>
-        </section>
-    </main>
+    <div class="minecraft-container">
+        <h1 class="minecraft-title">API de Videojuegos (Minecraft Style)</h1>
+        
+        <!-- Navegación -->
+        <div class="minecraft-nav">
+            <button onclick="mostrarSeccion('juegos')" class="minecraft-nav-btn">🎮 Juegos</button>
+            <button onclick="mostrarSeccion('consolas')" class="minecraft-nav-btn">🕹️ Consolas</button>
+            <button onclick="mostrarSeccion('accesorios')" class="minecraft-nav-btn">🎧 Accesorios</button>
+            <button onclick="mostrarSeccion('compatibilidad')" class="minecraft-nav-btn">🔗 Compatibilidad</button>
+        </div>
+
+        <!-- Sección de Juegos -->
+        <div id="juegos-section" class="minecraft-section">
+            <h2>📜 Tus Juegos:</h2>
+            
+            {% for juego in juegos %}
+            <div class="minecraft-item">
+                <!-- Contenido existente de juegos -->
+            </div>
+            {% endfor %}
+
+            <h2>✨ Añadir Nuevo Juego:</h2>
+            <form id="juego-form" class="minecraft-form" enctype="multipart/form-data">
+                <div class="form-group">
+                    <label for="nombre-juego">Nombre:</label>
+                    <input type="text" id="nombre-juego" name="nombre" required class="minecraft-input">
+                </div>
+                
+                <div class="form-group">
+                    <label for="genero-juego">Género:</label>
+                    <input type="text" id="genero-juego" name="genero" required class="minecraft-input">
+                </div>
+                
+                <div class="form-group">
+                    <label for="año-juego">Año:</label>
+                    <input type="number" id="año-juego" name="año" class="minecraft-input">
+                </div>
+                
+                <div class="form-group">
+                    <label for="desarrollador-juego">Desarrollador:</label>
+                    <input type="text" id="desarrollador-juego" name="desarrollador" required class="minecraft-input">
+                </div>
+                
+                <div class="form-group">
+                    <label for="imagen-juego">Imagen:</label>
+                    <input type="file" id="imagen-juego" name="imagen" accept="image/*" class="minecraft-input">
+                </div>
+                
+                <button type="submit" class="minecraft-button">⛏️ Crear Juego</button>
+            </form>
+        </div>
+
+        <!-- Sección de Consolas (inicialmente oculta) -->
+        <div id="consolas-section" class="minecraft-section" style="display:none;">
+            <h2>🎮 Tus Consolas:</h2>
+            
+            <div id="consolas-list">
+                <!-- Consolas se cargarán dinámicamente -->
+            </div>
+
+            <h2>✨ Añadir Nueva Consola:</h2>
+            <form id="consola-form" class="minecraft-form" enctype="multipart/form-data">
+                <div class="form-group">
+                    <label for="nombre-consola">Nombre:</label>
+                    <input type="text" id="nombre-consola" name="nombre" required class="minecraft-input">
+                </div>
+                
+                <div class="form-group">
+                    <label for="fabricante-consola">Fabricante:</label>
+                    <input type="text" id="fabricante-consola" name="fabricante" required class="minecraft-input">
+                </div>
+                
+                <div class="form-group">
+                    <label for="año-consola">Año de lanzamiento:</label>
+                    <input type="number" id="año-consola" name="año_lanzamiento" class="minecraft-input">
+                </div>
+                
+                <div class="form-group">
+                    <label for="imagen-consola">Imagen:</label>
+                    <input type="file" id="imagen-consola" name="imagen" accept="image/*" class="minecraft-input">
+                </div>
+                
+                <button type="submit" class="minecraft-button">⛏️ Crear Consola</button>
+            </form>
+        </div>
+
+        <!-- Sección de Accesorios (inicialmente oculta) -->
+        <div id="accesorios-section" class="minecraft-section" style="display:none;">
+            <h2>🎧 Tus Accesorios:</h2>
+            
+            <div id="accesorios-list">
+                <!-- Accesorios se cargarán dinámicamente -->
+            </div>
+
+            <h2>✨ Añadir Nuevo Accesorio:</h2>
+            <form id="accesorio-form" class="minecraft-form" enctype="multipart/form-data">
+                <div class="form-group">
+                    <label for="nombre-accesorio">Nombre:</label>
+                    <input type="text" id="nombre-accesorio" name="nombre" required class="minecraft-input">
+                </div>
+                
+                <div class="form-group">
+                    <label for="tipo-accesorio">Tipo:</label>
+                    <input type="text" id="tipo-accesorio" name="tipo" required class="minecraft-input">
+                </div>
+                
+                <div class="form-group">
+                    <label>Consolas compatibles:</label>
+                    <div id="consolas-compatibles" class="checkbox-group">
+                        <!-- Checkboxes se llenarán dinámicamente -->
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="imagen-accesorio">Imagen:</label>
+                    <input type="file" id="imagen-accesorio" name="imagen" accept="image/*" class="minecraft-input">
+                </div>
+                
+                <button type="submit" class="minecraft-button">⛏️ Crear Accesorio</button>
+            </form>
+        </div>
+
+        <!-- Sección de Compatibilidad (inicialmente oculta) -->
+        <div id="compatibilidad-section" class="minecraft-section" style="display:none;">
+            <h2>🔗 Compatibilidad Juegos-Consolas:</h2>
+            
+            <div id="compatibilidad-list">
+                <!-- Relaciones se cargarán dinámicamente -->
+            </div>
+
+            <h2>✨ Añadir Nueva Compatibilidad:</h2>
+            <form id="compatibilidad-form" class="minecraft-form">
+                <div class="form-group">
+                    <label for="juego-compatibilidad">Juego:</label>
+                    <select id="juego-compatibilidad" name="juego_id" required class="minecraft-input">
+                        <!-- Opciones se llenarán dinámicamente -->
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="consola-compatibilidad">Consola:</label>
+                    <select id="consola-compatibilidad" name="consola_id" required class="minecraft-input">
+                        <!-- Opciones se llenarán dinámicamente -->
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="accesorio-compatibilidad">Accesorio (opcional):</label>
+                    <select id="accesorio-compatibilidad" name="accesorio_id" class="minecraft-input">
+                        <option value="">Ninguno</option>
+                        <!-- Opciones se llenarán dinámicamente -->
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="notas-compatibilidad">Notas:</label>
+                    <textarea id="notas-compatibilidad" name="notas" class="minecraft-input" rows="3"></textarea>
+                </div>
+                
+                <button type="submit" class="minecraft-button">⛏️ Establecer Compatibilidad</button>
+            </form>
+        </div>
+    </div>
+
+    <script src="/static/script.js"></script>
 </body>
 </html>

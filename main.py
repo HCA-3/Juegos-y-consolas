@@ -1,328 +1,360 @@
-from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import HTMLResponse
+from fastapi import FastAPI, Request, HTTPException, UploadFile, File, Form
+from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from datetime import datetime
-from typing import List, Optional, Type, TypeVar
-import csv
+from pydantic import BaseModel
+from typing import Optional, List
+import sqlite3
 import os
-import uvicorn
+import uuid
+from datetime import datetime
 
-# Definición de modelos
-class ModeloBase:
-    def __init__(self, id: str):
-        self.id = id
-        self.fecha_creacion = datetime.now().isoformat()
-        self.activo = True
-    
-    def to_dict(self):
-        return {k: v for k, v in self.__dict__.items() if not k.startswith('_')}
+# Configuración inicial
+app = FastAPI(
+    title="API Minecraft de Videojuegos",
+    description="Sistema completo de gestión de juegos, consolas y accesorios con estilo Minecraft"
+)
 
-class Juego(ModeloBase):
-    def __init__(self, id: str, titulo: str, genero: str, desarrollador: str, 
-                 año: int, consolas: List[str], precio: float):
-        super().__init__(id)
-        self.titulo = titulo
-        self.genero = genero
-        self.desarrollador = desarrollador
-        self.año_lanzamiento = año
-        self.consolas_compatibles = consolas
-        self.precio = precio
+# Configuración de rutas
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DB_PATH = os.path.join(BASE_DIR, "database", "juegos.db")
+UPLOADS_DIR = os.path.join(BASE_DIR, "static", "uploads")
 
-    @classmethod
-    def from_dict(cls, data: dict):
-        return cls(
-            id=data['id'],
-            titulo=data['titulo'],
-            genero=data['genero'],
-            desarrollador=data['desarrollador'],
-            año=int(data['año_lanzamiento']),
-            consolas=data['consolas_compatibles'].split(','),
-            precio=float(data['precio'])
-        )
-
-class Consola(ModeloBase):
-    def __init__(self, id: str, nombre: str, fabricante: str, año: int, 
-                 generacion: int, precio: float, juegos: List[str]):
-        super().__init__(id)
-        self.nombre = nombre
-        self.fabricante = fabricante
-        self.año_lanzamiento = año
-        self.generacion = generacion
-        self.precio = precio
-        self.juegos_compatibles = juegos
-
-    @classmethod
-    def from_dict(cls, data: dict):
-        return cls(
-            id=data['id'],
-            nombre=data['nombre'],
-            fabricante=data['fabricante'],
-            año=int(data['año_lanzamiento']),
-            generacion=int(data['generacion']),
-            precio=float(data['precio']),
-            juegos=data['juegos_compatibles'].split(',')
-        )
-
-class Accesorio(ModeloBase):
-    def __init__(self, id: str, nombre: str, tipo: str, compatible_con: List[str], 
-                 precio: float, descripcion: str):
-        super().__init__(id)
-        self.nombre = nombre
-        self.tipo = tipo
-        self.compatible_con = compatible_con
-        self.precio = precio
-        self.descripcion = descripcion
-
-    @classmethod
-    def from_dict(cls, data: dict):
-        return cls(
-            id=data['id'],
-            nombre=data['nombre'],
-            tipo=data['tipo'],
-            compatible_con=data['compatible_con'].split(','),
-            precio=float(data['precio']),
-            descripcion=data['descripcion']
-        )
-
-class Historial:
-    def __init__(self, accion: str, modelo: str, objeto_id: str, detalles: str):
-        self.fecha = datetime.now().isoformat()
-        self.accion = accion
-        self.modelo = modelo
-        self.objeto_id = objeto_id
-        self.detalles = detalles
-    
-    def to_dict(self):
-        return self.__dict__
-
-# Operaciones CRUD
-T = TypeVar('T', Juego, Consola, Accesorio)
-
-class CRUDBase:
-    @staticmethod
-    def _guardar_csv(archivo: str, datos: list):
-        os.makedirs('data', exist_ok=True)
-        if not datos:
-            return
-        
-        with open(f'data/{archivo}', 'w', newline='', encoding='utf-8') as f:
-            writer = csv.DictWriter(f, fieldnames=datos[0].keys())
-            writer.writeheader()
-            writer.writerows(datos)
-    
-    @staticmethod
-    def _leer_csv(archivo: str) -> list:
-        if not os.path.exists(f'data/{archivo}'):
-            return []
-        
-        with open(f'data/{archivo}', 'r', encoding='utf-8') as f:
-            return list(csv.DictReader(f))
-
-    @classmethod
-    def crear(cls, objeto: T, archivo: str) -> T:
-        objetos = cls._leer_csv(archivo)
-        objetos.append(objeto.to_dict())
-        cls._guardar_csv(archivo, objetos)
-        return objeto
-    
-    @classmethod
-    def obtener_todos(cls, archivo: str, clase: Type[T]) -> List[T]:
-        datos = cls._leer_csv(archivo)
-        return [clase.from_dict(item) for item in datos if item.get('activo', 'True') == 'True']
-    
-    @classmethod
-    def obtener_por_id(cls, id: str, archivo: str, clase: Type[T]) -> Optional[T]:
-        datos = cls._leer_csv(archivo)
-        for item in datos:
-            if item['id'] == id and item.get('activo', 'True') == 'True':
-                return clase.from_dict(item)
-        return None
-    
-    @classmethod
-    def actualizar(cls, id: str, nuevos_datos: dict, archivo: str, clase: Type[T]) -> Optional[T]:
-        objetos = cls._leer_csv(archivo)
-        encontrado = False
-        
-        for obj in objetos:
-            if obj['id'] == id:
-                obj.update({k: str(v) for k, v in nuevos_datos.items() if k in obj})
-                encontrado = True
-                break
-        
-        if encontrado:
-            cls._guardar_csv(archivo, objetos)
-            return cls.obtener_por_id(id, archivo, clase)
-        return None
-    
-    @classmethod
-    def eliminar(cls, id: str, archivo: str) -> bool:
-        objetos = cls._leer_csv(archivo)
-        encontrado = False
-        
-        for obj in objetos:
-            if obj['id'] == id:
-                obj['activo'] = 'False'
-                encontrado = True
-                break
-        
-        if encontrado:
-            cls._guardar_csv(archivo, objetos)
-            return True
-        return False
-
-class JuegoCRUD(CRUDBase):
-    @classmethod
-    def buscar_por_genero(cls, genero: str) -> List[Juego]:
-        juegos = cls.obtener_todos('juegos.csv', Juego)
-        return [j for j in juegos if j.genero.lower() == genero.lower()]
-    
-    @classmethod
-    def buscar_por_fecha(cls, fecha_inicio: str, fecha_fin: str) -> List[Juego]:
-        juegos = cls.obtener_todos('juegos.csv', Juego)
-        return [j for j in juegos if fecha_inicio <= j.fecha_creacion <= fecha_fin]
-
-class ConsolaCRUD(CRUDBase):
-    @classmethod
-    def buscar_por_fabricante(cls, fabricante: str) -> List[Consola]:
-        consolas = cls.obtener_todos('consolas.csv', Consola)
-        return [c for c in consolas if c.fabricante.lower() == fabricante.lower()]
-    
-    @classmethod
-    def buscar_por_generacion(cls, generacion: int) -> List[Consola]:
-        consolas = cls.obtener_todos('consolas.csv', Consola)
-        return [c for c in consolas if c.generacion == generacion]
-
-class AccesorioCRUD(CRUDBase):
-    @classmethod
-    def buscar_por_tipo(cls, tipo: str) -> List[Accesorio]:
-        accesorios = cls.obtener_todos('accesorios.csv', Accesorio)
-        return [a for a in accesorios if a.tipo.lower() == tipo.lower()]
-    
-    @classmethod
-    def buscar_por_compatibilidad(cls, modelo: str) -> List[Accesorio]:
-        accesorios = cls.obtener_todos('accesorios.csv', Accesorio)
-        return [a for a in accesorios if modelo.lower() in [c.lower() for c in a.compatible_con]]
-
-class HistorialCRUD(CRUDBase):
-    @classmethod
-    def registrar(cls, accion: str, modelo: str, objeto_id: str, detalles: str):
-        historial = Historial(accion, modelo, objeto_id, detalles)
-        historiales = cls._leer_csv('historial.csv')
-        historiales.append(historial.to_dict())
-        cls._guardar_csv('historial.csv', historiales)
-    
-    @classmethod
-    def obtener_historial(cls) -> List[Historial]:
-        datos = cls._leer_csv('historial.csv')
-        return [Historial(**item) for item in datos]
+# Crear carpetas necesarias
+os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
+os.makedirs(UPLOADS_DIR, exist_ok=True)
 
 # Configuración de FastAPI
-app = FastAPI()
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
-# Endpoints para Juegos
-@app.post("/juegos/", response_model=Juego)
-async def crear_juego(juego: Juego):
-    nuevo_juego = JuegoCRUD.crear(juego, 'juegos.csv')
-    HistorialCRUD.registrar("CREATE", "Juego", juego.id, f"Juego {juego.titulo} creado")
-    return nuevo_juego
+# Modelos Pydantic
+class JuegoBase(BaseModel):
+    nombre: str
+    genero: str
+    año: Optional[int] = None
+    desarrollador: str
 
-@app.get("/juegos/", response_model=List[Juego])
-async def listar_juegos():
-    return JuegoCRUD.obtener_todos('juegos.csv', Juego)
+class ConsolaBase(BaseModel):
+    nombre: str
+    fabricante: str
+    año_lanzamiento: Optional[int] = None
 
-@app.get("/juegos/{juego_id}", response_model=Juego)
-async def obtener_juego(juego_id: str):
-    juego = JuegoCRUD.obtener_por_id(juego_id, 'juegos.csv', Juego)
-    if not juego:
-        raise HTTPException(status_code=404, detail="Juego no encontrado")
-    return juego
+class AccesorioBase(BaseModel):
+    nombre: str
+    tipo: str
+    compatible_con: str  # IDs de consolas separados por comas
 
-@app.put("/juegos/{juego_id}", response_model=Juego)
-async def actualizar_juego(juego_id: str, juego: Juego):
-    actualizado = JuegoCRUD.actualizar(juego_id, juego.to_dict(), 'juegos.csv', Juego)
-    if not actualizado:
-        raise HTTPException(status_code=404, detail="Juego no encontrado")
-    HistorialCRUD.registrar("UPDATE", "Juego", juego_id, "Datos actualizados")
-    return actualizado
+class CompatibilidadBase(BaseModel):
+    juego_id: int
+    consola_id: int
+    accesorio_id: Optional[int] = None
+    notas: Optional[str] = None
 
-@app.delete("/juegos/{juego_id}")
-async def eliminar_juego(juego_id: str):
-    if not JuegoCRUD.eliminar(juego_id, 'juegos.csv'):
-        raise HTTPException(status_code=404, detail="Juego no encontrado")
-    HistorialCRUD.registrar("DELETE", "Juego", juego_id, "Juego marcado como inactivo")
-    return {"message": "Juego eliminado correctamente"}
+# Inicializar base de datos
+def init_db():
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    
+    # Tabla de juegos
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS juegos (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        nombre TEXT NOT NULL,
+        genero TEXT NOT NULL,
+        año INTEGER,
+        desarrollador TEXT NOT NULL,
+        imagen TEXT,
+        fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """)
+    
+    # Tabla de consolas
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS consolas (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        nombre TEXT NOT NULL,
+        fabricante TEXT NOT NULL,
+        año_lanzamiento INTEGER,
+        imagen TEXT,
+        fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """)
+    
+    # Tabla de accesorios
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS accesorios (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        nombre TEXT NOT NULL,
+        tipo TEXT NOT NULL,
+        compatible_con TEXT,
+        imagen TEXT,
+        fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """)
+    
+    # Tabla de compatibilidad
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS compatibilidad (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        juego_id INTEGER NOT NULL,
+        consola_id INTEGER NOT NULL,
+        accesorio_id INTEGER,
+        notas TEXT,
+        FOREIGN KEY(juego_id) REFERENCES juegos(id),
+        FOREIGN KEY(consola_id) REFERENCES consolas(id),
+        FOREIGN KEY(accesorio_id) REFERENCES accesorios(id)
+    )
+    """)
+    
+    conn.commit()
+    conn.close()
 
-@app.get("/juegos/genero/{genero}", response_model=List[Juego])
-async def buscar_juegos_por_genero(genero: str):
-    return JuegoCRUD.buscar_por_genero(genero)
+init_db()
 
-@app.get("/juegos/fecha/{fecha_inicio}/{fecha_fin}", response_model=List[Juego])
-async def buscar_juegos_por_fecha(fecha_inicio: str, fecha_fin: str):
-    return JuegoCRUD.buscar_por_fecha(fecha_inicio, fecha_fin)
+# Funciones de base de datos
+def get_db():
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    return conn
 
-# Endpoints para Consolas
-@app.post("/consolas/", response_model=Consola)
-async def crear_consola(consola: Consola):
-    nueva_consola = ConsolaCRUD.crear(consola, 'consolas.csv')
-    HistorialCRUD.registrar("CREATE", "Consola", consola.id, f"Consola {consola.nombre} creada")
-    return nueva_consola
+# Obtener datos completos para la vista
+def obtener_datos_completos():
+    conn = get_db()
+    cursor = conn.cursor()
+    
+    # Obtener juegos con sus consolas compatibles
+    cursor.execute("SELECT * FROM juegos")
+    juegos = cursor.fetchall()
+    
+    juegos_completos = []
+    for juego in juegos:
+        cursor.execute("""
+        SELECT c.* FROM compatibilidad comp
+        JOIN consolas c ON comp.consola_id = c.id
+        WHERE comp.juego_id = ? AND comp.accesorio_id IS NULL
+        """, (juego['id'],))
+        consolas = cursor.fetchall()
+        
+        juegos_completos.append({
+            **dict(juego),
+            'consolas': consolas
+        })
+    
+    # Obtener todas las consolas
+    cursor.execute("SELECT * FROM consolas")
+    consolas = cursor.fetchall()
+    
+    # Obtener todos los accesorios
+    cursor.execute("SELECT * FROM accesorios")
+    accesorios = cursor.fetchall()
+    
+    # Obtener relaciones de compatibilidad
+    cursor.execute("""
+    SELECT comp.id, j.nombre as juego, c.nombre as consola, 
+           a.nombre as accesorio, comp.notas
+    FROM compatibilidad comp
+    LEFT JOIN juegos j ON comp.juego_id = j.id
+    LEFT JOIN consolas c ON comp.consola_id = c.id
+    LEFT JOIN accesorios a ON comp.accesorio_id = a.id
+    """)
+    compatibilidades = cursor.fetchall()
+    
+    conn.close()
+    
+    return {
+        "juegos": juegos_completos,
+        "consolas": consolas,
+        "accesorios": accesorios,
+        "compatibilidades": compatibilidades
+    }
 
-@app.get("/consolas/", response_model=List[Consola])
-async def listar_consolas():
-    return ConsolaCRUD.obtener_todos('consolas.csv', Consola)
-
-@app.get("/consolas/{consola_id}", response_model=Consola)
-async def obtener_consola(consola_id: str):
-    consola = ConsolaCRUD.obtener_por_id(consola_id, 'consolas.csv', Consola)
-    if not consola:
-        raise HTTPException(status_code=404, detail="Consola no encontrada")
-    return consola
-
-@app.put("/consolas/{consola_id}", response_model=Consola)
-async def actualizar_consola(consola_id: str, consola: Consola):
-    actualizada = ConsolaCRUD.actualizar(consola_id, consola.to_dict(), 'consolas.csv', Consola)
-    if not actualizada:
-        raise HTTPException(status_code=404, detail="Consola no encontrada")
-    HistorialCRUD.registrar("UPDATE", "Consola", consola_id, "Datos actualizados")
-    return actualizada
-
-@app.delete("/consolas/{consola_id}")
-async def eliminar_consola(consola_id: str):
-    if not ConsolaCRUD.eliminar(consola_id, 'consolas.csv'):
-        raise HTTPException(status_code=404, detail="Consola no encontrada")
-    HistorialCRUD.registrar("DELETE", "Consola", consola_id, "Consola marcada como inactiva")
-    return {"message": "Consola eliminada correctamente"}
-
-# Endpoints para Accesorios
-@app.post("/accesorios/", response_model=Accesorio)
-async def crear_accesorio(accesorio: Accesorio):
-    nuevo_accesorio = AccesorioCRUD.crear(accesorio, 'accesorios.csv')
-    HistorialCRUD.registrar("CREATE", "Accesorio", accesorio.id, f"Accesorio {accesorio.nombre} creado")
-    return nuevo_accesorio
-
-@app.get("/accesorios/", response_model=List[Accesorio])
-async def listar_accesorios():
-    return AccesorioCRUD.obtener_todos('accesorios.csv', Accesorio)
-
-@app.get("/accesorios/{accesorio_id}", response_model=Accesorio)
-async def obtener_accesorio(accesorio_id: str):
-    accesorio = AccesorioCRUD.obtener_por_id(accesorio_id, 'accesorios.csv', Accesorio)
-    if not accesorio:
-        raise HTTPException(status_code=404, detail="Accesorio no encontrado")
-    return accesorio
-
-# Endpoint para el historial
-@app.get("/historial/")
-async def obtener_historial():
-    return HistorialCRUD.obtener_historial()
-
-# Endpoint para la página principal
+# Rutas principales
 @app.get("/", response_class=HTMLResponse)
-async def home(request: Request):
-    return templates.TemplateResponse("index.html", {"request": request})
+async def inicio(request: Request):
+    datos = obtener_datos_completos()
+    return templates.TemplateResponse("index.html", {"request": request, **datos})
+
+# API para Juegos
+@app.post("/api/juegos", response_class=JSONResponse)
+async def crear_juego(
+    nombre: str = Form(...),
+    genero: str = Form(...),
+    año: Optional[int] = Form(None),
+    desarrollador: str = Form(...),
+    imagen: UploadFile = File(None),
+    consolas: List[int] = Form([])
+):
+    # Guardar imagen
+    imagen_url = None
+    if imagen:
+        filename = f"{uuid.uuid4()}.{imagen.filename.split('.')[-1]}"
+        filepath = os.path.join(UPLOADS_DIR, filename)
+        with open(filepath, "wb") as buffer:
+            buffer.write(await imagen.read())
+        imagen_url = f"/static/uploads/{filename}"
+
+    conn = get_db()
+    cursor = conn.cursor()
+    
+    try:
+        # Insertar juego
+        cursor.execute(
+            """
+            INSERT INTO juegos (nombre, genero, año, desarrollador, imagen)
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            (nombre, genero, año, desarrollador, imagen_url)
+        )
+        juego_id = cursor.lastrowid
+        
+        # Insertar relaciones con consolas
+        for consola_id in consolas:
+            cursor.execute(
+                """
+                INSERT INTO compatibilidad (juego_id, consola_id)
+                VALUES (?, ?)
+                """,
+                (juego_id, consola_id)
+            )
+        
+        conn.commit()
+        return JSONResponse(
+            status_code=201,
+            content={"message": "Juego creado con éxito", "id": juego_id}
+        )
+    except Exception as e:
+        conn.rollback()
+        raise HTTPException(status_code=400, detail=str(e))
+    finally:
+        conn.close()
+
+@app.delete("/api/juegos/{juego_id}", response_class=JSONResponse)
+async def eliminar_juego(juego_id: int):
+    conn = get_db()
+    cursor = conn.cursor()
+    
+    try:
+        # Eliminar relaciones primero
+        cursor.execute("DELETE FROM compatibilidad WHERE juego_id = ?", (juego_id,))
+        
+        # Eliminar juego
+        cursor.execute("DELETE FROM juegos WHERE id = ?", (juego_id,))
+        
+        conn.commit()
+        return {"message": "Juego eliminado con éxito"}
+    except Exception as e:
+        conn.rollback()
+        raise HTTPException(status_code=400, detail=str(e))
+    finally:
+        conn.close()
+
+# API para Consolas
+@app.post("/api/consolas", response_class=JSONResponse)
+async def crear_consola(
+    nombre: str = Form(...),
+    fabricante: str = Form(...),
+    año_lanzamiento: Optional[int] = Form(None),
+    imagen: UploadFile = File(None)
+):
+    imagen_url = None
+    if imagen:
+        filename = f"{uuid.uuid4()}.{imagen.filename.split('.')[-1]}"
+        filepath = os.path.join(UPLOADS_DIR, filename)
+        with open(filepath, "wb") as buffer:
+            buffer.write(await imagen.read())
+        imagen_url = f"/static/uploads/{filename}"
+
+    conn = get_db()
+    cursor = conn.cursor()
+    
+    try:
+        cursor.execute(
+            """
+            INSERT INTO consolas (nombre, fabricante, año_lanzamiento, imagen)
+            VALUES (?, ?, ?, ?)
+            """,
+            (nombre, fabricante, año_lanzamiento, imagen_url)
+        )
+        conn.commit()
+        return JSONResponse(
+            status_code=201,
+            content={"message": "Consola creada con éxito"}
+        )
+    except Exception as e:
+        conn.rollback()
+        raise HTTPException(status_code=400, detail=str(e))
+    finally:
+        conn.close()
+
+# API para Accesorios
+@app.post("/api/accesorios", response_class=JSONResponse)
+async def crear_accesorio(
+    nombre: str = Form(...),
+    tipo: str = Form(...),
+    compatible_con: str = Form(...),
+    imagen: UploadFile = File(None)
+):
+    imagen_url = None
+    if imagen:
+        filename = f"{uuid.uuid4()}.{imagen.filename.split('.')[-1]}"
+        filepath = os.path.join(UPLOADS_DIR, filename)
+        with open(filepath, "wb") as buffer:
+            buffer.write(await imagen.read())
+        imagen_url = f"/static/uploads/{filename}"
+
+    conn = get_db()
+    cursor = conn.cursor()
+    
+    try:
+        cursor.execute(
+            """
+            INSERT INTO accesorios (nombre, tipo, compatible_con, imagen)
+            VALUES (?, ?, ?, ?)
+            """,
+            (nombre, tipo, compatible_con, imagen_url)
+        )
+        conn.commit()
+        return JSONResponse(
+            status_code=201,
+            content={"message": "Accesorio creado con éxito"}
+        )
+    except Exception as e:
+        conn.rollback()
+        raise HTTPException(status_code=400, detail=str(e))
+    finally:
+        conn.close()
+
+# API para Compatibilidad
+@app.post("/api/compatibilidad", response_class=JSONResponse)
+async def crear_compatibilidad(
+    juego_id: int = Form(...),
+    consola_id: int = Form(...),
+    accesorio_id: Optional[int] = Form(None),
+    notas: Optional[str] = Form(None)
+):
+    conn = get_db()
+    cursor = conn.cursor()
+    
+    try:
+        cursor.execute(
+            """
+            INSERT INTO compatibilidad (juego_id, consola_id, accesorio_id, notas)
+            VALUES (?, ?, ?, ?)
+            """,
+            (juego_id, consola_id, accesorio_id, notas)
+        )
+        conn.commit()
+        return JSONResponse(
+            status_code=201,
+            content={"message": "Compatibilidad establecida con éxito"}
+        )
+    except Exception as e:
+        conn.rollback()
+        raise HTTPException(status_code=400, detail=str(e))
+    finally:
+        conn.close()
 
 if __name__ == "__main__":
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)
