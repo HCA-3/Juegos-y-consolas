@@ -2,6 +2,7 @@
 :root {
     --color-primary: #55ff55;
     --color-secondary: #ffaa00;
+    --color-accent: #5555ff;
     --color-dark: #1a1a1a;
     --color-dark-gray: #2d2d2d;
     --color-gray: #3a3a3a;
@@ -72,6 +73,11 @@ body {
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
 }
 
+.minecraft-nav-btn:active {
+    transform: translateY(0);
+    box-shadow: none;
+}
+
 /* Secciones */
 .minecraft-section {
     background-color: var(--color-gray);
@@ -97,11 +103,33 @@ body {
     margin-bottom: 15px;
     border-radius: 4px;
     transition: transform 0.2s;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
 }
 
 .minecraft-item:hover {
     transform: translateY(-3px);
     box-shadow: 0 5px 10px rgba(0, 0, 0, 0.2);
+}
+
+.item-info {
+    flex: 1;
+    min-width: 200px;
+}
+
+.minecraft-item h3 {
+    color: var(--color-primary);
+    margin-top: 0;
+    margin-bottom: 10px;
+}
+
+.minecraft-item p {
+    margin: 5px 0;
+}
+
+.minecraft-item strong {
+    color: var(--color-secondary);
 }
 
 /* Formularios */
@@ -140,34 +168,10 @@ body {
     border-color: var(--color-primary);
 }
 
-textarea.minecraft-input {
-    min-height: 100px;
-    resize: vertical;
-}
-
-/* Checkboxes y radios */
-.checkbox-group {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10px;
-    margin-top: 5px;
-}
-
-.minecraft-checkbox {
-    display: flex;
-    align-items: center;
-    gap: 5px;
-}
-
-.minecraft-checkbox input {
-    margin: 0;
-}
-
 /* Imágenes */
 .minecraft-img {
-    max-width: 100%;
+    max-width: 200px;
     height: auto;
-    margin-top: 10px;
     border: 3px solid var(--color-lighter-gray);
     border-radius: 4px;
 }
@@ -183,7 +187,6 @@ textarea.minecraft-input {
     border-radius: 4px;
     font-size: 1rem;
     transition: all 0.3s;
-    grid-column: span 2;
 }
 
 .minecraft-button:hover {
@@ -197,38 +200,74 @@ textarea.minecraft-input {
     box-shadow: none;
 }
 
-/* Listas */
-.grid-container {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-    gap: 20px;
+/* Búsqueda */
+.search-box {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+}
+
+.search-box .minecraft-input {
+    flex: 1;
+    min-width: 200px;
+}
+
+.search-box select.minecraft-input {
+    flex: 0 1 auto;
+}
+
+.search-results {
     margin-top: 20px;
+    border-top: 2px solid var(--color-lighter-gray);
+    padding-top: 15px;
 }
 
-.list-item {
-    background-color: var(--color-light-gray);
-    padding: 15px;
-    border-left: 4px solid var(--color-primary);
-    border-radius: 4px;
+.result-section {
+    margin-bottom: 30px;
 }
 
-.list-item h3 {
-    color: var(--color-primary);
-    margin-top: 0;
+.result-section h3 {
+    color: var(--color-secondary);
+    margin-bottom: 15px;
 }
 
-/* Compatibilidad */
-.compatibilidad-item {
+.search-result-item {
     background-color: var(--color-light-gray);
     padding: 15px;
     margin-bottom: 15px;
-    border-left: 4px solid var(--color-secondary);
     border-radius: 4px;
+    transition: all 0.3s;
 }
 
-.compatibilidad-item h3 {
-    color: var(--color-secondary);
+.search-result-item:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 5px 10px rgba(0, 0, 0, 0.2);
+}
+
+.search-result-item h4 {
+    color: var(--color-primary);
     margin-top: 0;
+    margin-bottom: 10px;
+}
+
+.no-results {
+    color: var(--color-secondary);
+    text-align: center;
+    font-size: 1.2rem;
+}
+
+/* Tipos de resultados */
+.result-type-juegos {
+    border-left: 5px solid var(--color-primary);
+}
+
+.result-type-consolas {
+    border-left: 5px solid var(--color-secondary);
+}
+
+.result-type-accesorios {
+    border-left: 5px solid var(--color-accent);
 }
 
 /* Responsive */
@@ -248,6 +287,22 @@ textarea.minecraft-input {
     .minecraft-nav-btn {
         width: 100%;
     }
+    
+    .minecraft-item {
+        flex-direction: column;
+    }
+    
+    .minecraft-img {
+        max-width: 100%;
+    }
+    
+    .search-box {
+        flex-direction: column;
+    }
+    
+    .search-box select.minecraft-input {
+        width: 100%;
+    }
 }
 
 /* Efectos especiales */
@@ -259,21 +314,4 @@ textarea.minecraft-input {
 
 .minecraft-button:focus {
     animation: pulse 0.5s ease-in-out;
-}
-
-/* Clases para estados */
-.error-message {
-    color: #ff5555;
-    font-size: 0.9rem;
-    margin-top: 5px;
-}
-
-.success-message {
-    color: var(--color-primary);
-    text-align: center;
-    margin: 15px 0;
-}
-
-.hidden {
-    display: none !important;
 }
