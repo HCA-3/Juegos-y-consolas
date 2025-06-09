@@ -14,7 +14,6 @@ app = FastAPI(
     description="Sistema completo con búsqueda, gestión y comparación de juegos, consolas y accesorios"
 )
 
-# Configuración para Render
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_PATH = os.path.join(BASE_DIR, "juegos.db")
 UPLOADS_DIR = os.path.join(BASE_DIR, "static", "uploads")
@@ -183,192 +182,102 @@ def registrar_historial(accion: str, detalles: str, tipo_objeto: str = None, obj
     finally:
         conn.close()
 
-def obtener_datos_completos():
-    conn = get_db()
-    cursor = conn.cursor()
-    
-    cursor.execute("SELECT * FROM juegos")
-    juegos = cursor.fetchall()
-    
-    juegos_completos = []
-    for juego in juegos:
-        cursor.execute("""
-            SELECT c.id, c.nombre FROM compatibilidad comp
-            JOIN consolas c ON comp.consola_id = c.id
-            WHERE comp.juego_id = ? AND comp.accesorio_id IS NULL
-        """, (juego['id'],))
-        consolas = [dict(row) for row in cursor.fetchall()]
-        
-        cursor.execute("""
-            SELECT a.id, a.nombre FROM compatibilidad comp
-            JOIN accesorios a ON comp.accesorio_id = a.id
-            WHERE comp.juego_id = ?
-        """, (juego['id'],))
-        accesorios = [dict(row) for row in cursor.fetchall()]
-        
-        juegos_completos.append({
-            **dict(juego),
-            'consolas': consolas,
-            'accesorios': accesorios
-        })
-    
-    cursor.execute("SELECT * FROM consolas")
-    consolas = [dict(row) for row in cursor.fetchall()]
-    
-    cursor.execute("SELECT * FROM accesorios")
-    accesorios = []
-    for accesorio in cursor.fetchall():
-        accesorio_dict = dict(accesorio)
-        cursor.execute("""
-            SELECT c.id, c.nombre FROM accesorio_consola ac
-            JOIN consolas c ON ac.consola_id = c.id
-            WHERE ac.accesorio_id = ?
-        """, (accesorio_dict['id'],))
-        accesorio_dict['consolas_compatibles'] = [dict(row) for row in cursor.fetchall()]
-        accesorios.append(accesorio_dict)
-    
-    cursor.execute("""
-        SELECT c.*, j.nombre as juego_nombre, con.nombre as consola_nombre, a.nombre as accesorio_nombre
-        FROM comparaciones c
-        LEFT JOIN juegos j ON c.juego_id = j.id
-        LEFT JOIN consolas con ON c.consola_id = con.id
-        LEFT JOIN accesorios a ON c.accesorio_id = a.id
-        ORDER BY c.fecha_creacion DESC
-    """)
-    comparaciones = [dict(row) for row in cursor.fetchall()]
-    
-    cursor.execute("SELECT * FROM historial ORDER BY fecha DESC LIMIT 50")
-    historial = [dict(row) for row in cursor.fetchall()]
-    
-    conn.close()
-    
-    return {
-        "juegos": juegos_completos,
-        "consolas": consolas,
-        "accesorios": accesorios,
-        "comparaciones": comparaciones,
-        "historial": historial
-    }
-
 @app.on_event("startup")
 async def startup():
     init_db()
 
 @app.get("/", response_class=HTMLResponse)
 async def inicio(request: Request):
-    datos = obtener_datos_completos()
-    return templates.TemplateResponse("index.html", {"request": request, **datos})
-
-@app.get("/comparaciones", response_class=HTMLResponse)
-async def ver_comparaciones(request: Request):
-    datos = obtener_datos_completos()
-    return templates.TemplateResponse("comparaciones.html", {"request": request, **datos})
-
-@app.get("/historial", response_class=HTMLResponse)
-async def ver_historial(request: Request, clave: str = Query(None)):
-    if clave != "0000":
-        raise HTTPException(status_code=403, detail="Clave incorrecta")
-    datos = obtener_datos_completos()
-    return templates.TemplateResponse("historial.html", {"request": request, "historial": datos["historial"]})
-
-@app.post("/api/comparaciones", response_class=JSONResponse)
-async def crear_comparacion(
-    nombre: str = Form(...),
-    juego_id: int = Form(...),
-    consola_id: int = Form(...),
-    accesorio_id: Optional[int] = Form(None),
-    notas: Optional[str] = Form(None)
-):
     conn = get_db()
     cursor = conn.cursor()
     
     try:
-        cursor.execute(
-            """
-            INSERT INTO comparaciones (nombre, juego_id, consola_id, accesorio_id, notas)
-            VALUES (?, ?, ?, ?, ?)
-            """,
-            (nombre, juego_id, consola_id, accesorio_id, notas)
-        )
-        comparacion_id = cursor.lastrowid
+        cursor.execute("SELECT * FROM juegos")
+        juegos = [dict(row) for row in cursor.fetchall()]
         
-        cursor.execute("SELECT nombre FROM juegos WHERE id = ?", (juego_id,))
-        juego_nombre = cursor.fetchone()['nombre']
-        cursor.execute("SELECT nombre FROM consolas WHERE id = ?", (consola_id,))
-        consola_nombre = cursor.fetchone()['nombre']
+        cursor.execute("SELECT * FROM consolas")
+        consolas = [dict(row) for row in cursor.fetchall()]
         
-        detalles = f"Comparación creada: {juego_nombre} con {consola_nombre}"
-        if accesorio_id:
-            cursor.execute("SELECT nombre FROM accesorios WHERE id = ?", (accesorio_id,))
-            accesorio_nombre = cursor.fetchone()['nombre']
-            detalles += f" y {accesorio_nombre}"
+        cursor.execute("SELECT * FROM accesorios")
+        accesorios = [dict(row) for row in cursor.fetchall()]
         
-        conn.commit()
-        registrar_historial(
-            "Comparación",
-            detalles,
-            "comparacion",
-            comparacion_id
-        )
-        return JSONResponse(
-            status_code=201,
-            content={"message": "Comparación creada con éxito", "id": comparacion_id}
-        )
-    except Exception as e:
-        conn.rollback()
-        raise HTTPException(status_code=400, detail=str(e))
-    finally:
-        conn.close()
-
-@app.get("/api/comparaciones", response_class=JSONResponse)
-async def obtener_comparaciones():
-    conn = get_db()
-    cursor = conn.cursor()
-    
-    try:
-        cursor.execute("""
-            SELECT c.*, j.nombre as juego_nombre, con.nombre as consola_nombre, a.nombre as accesorio_nombre
-            FROM comparaciones c
-            LEFT JOIN juegos j ON c.juego_id = j.id
-            LEFT JOIN consolas con ON c.consola_id = con.id
-            LEFT JOIN accesorios a ON c.accesorio_id = a.id
-            ORDER BY c.fecha_creacion DESC
-        """)
-        comparaciones = [dict(row) for row in cursor.fetchall()]
-        return {"comparaciones": comparaciones}
+        return templates.TemplateResponse("index.html", {
+            "request": request,
+            "juegos": juegos,
+            "consolas": consolas,
+            "accesorios": accesorios
+        })
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
     finally:
         conn.close()
 
-@app.delete("/api/comparaciones/{comparacion_id}", response_class=JSONResponse)
-async def eliminar_comparacion(comparacion_id: int):
+@app.get("/api/historial", response_class=JSONResponse)
+async def obtener_historial(clave: str = Query(...)):
+    if clave != "0000":
+        raise HTTPException(status_code=403, detail="Clave incorrecta")
+    
     conn = get_db()
     cursor = conn.cursor()
     
     try:
         cursor.execute("""
-            SELECT c.nombre, j.nombre as juego_nombre, con.nombre as consola_nombre
-            FROM comparaciones c
-            JOIN juegos j ON c.juego_id = j.id
-            JOIN consolas con ON c.consola_id = con.id
-            WHERE c.id = ?
-        """, (comparacion_id,))
-        datos = cursor.fetchone()
-        
-        cursor.execute("DELETE FROM comparaciones WHERE id = ?", (comparacion_id,))
-        
-        conn.commit()
-        registrar_historial(
-            "Eliminación",
-            f"Comparación eliminada: {datos['nombre']} ({datos['juego_nombre']} con {datos['consola_nombre']})",
-            "comparacion",
-            comparacion_id
-        )
-        return {"message": "Comparación eliminada con éxito"}
+            SELECT accion, detalles, tipo_objeto, objeto_id, 
+                   strftime('%Y-%m-%d %H:%M:%S', fecha) as fecha 
+            FROM historial 
+            ORDER BY fecha DESC 
+            LIMIT 50
+        """)
+        historial = [dict(row) for row in cursor.fetchall()]
+        return {"historial": historial}
     except Exception as e:
-        conn.rollback()
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        conn.close()
+
+@app.get("/api/buscar", response_class=JSONResponse)
+async def buscar(
+    q: str = Query(..., min_length=1),
+    tipo: str = Query("todo", regex="^(juegos|consolas|accesorios|todo)$")
+):
+    conn = get_db()
+    cursor = conn.cursor()
+    
+    try:
+        query = f"%{q}%"
+        results = {"juegos": [], "consolas": [], "accesorios": []}
+        
+        if tipo in ["juegos", "todo"]:
+            cursor.execute("""
+                SELECT * FROM juegos 
+                WHERE nombre LIKE ? OR genero LIKE ? OR desarrollador LIKE ?
+            """, (query, query, query))
+            results["juegos"] = [dict(row) for row in cursor.fetchall()]
+        
+        if tipo in ["consolas", "todo"]:
+            cursor.execute("""
+                SELECT * FROM consolas 
+                WHERE nombre LIKE ? OR fabricante LIKE ?
+            """, (query, query))
+            results["consolas"] = [dict(row) for row in cursor.fetchall()]
+        
+        if tipo in ["accesorios", "todo"]:
+            cursor.execute("""
+                SELECT * FROM accesorios 
+                WHERE nombre LIKE ? OR tipo LIKE ?
+            """, (query, query))
+            results["accesorios"] = [dict(row) for row in cursor.fetchall()]
+        
+        registrar_historial(
+            "Búsqueda",
+            f"Búsqueda realizada: '{q}' en {tipo}",
+            None,
+            None
+        )
+        return results
+    
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
     finally:
         conn.close()
 
@@ -808,66 +717,120 @@ async def eliminar_accesorio(accesorio_id: int):
     finally:
         conn.close()
 
-@app.get("/api/buscar", response_class=JSONResponse)
-async def buscar(
-    q: str = Query(..., min_length=1),
-    tipo: str = Query("todo", regex="^(juegos|consolas|accesorios|todo)$")
-):
+@app.get("/comparaciones", response_class=HTMLResponse)
+async def ver_comparaciones(request: Request):
     conn = get_db()
     cursor = conn.cursor()
     
     try:
-        query = f"%{q}%"
-        results = {"juegos": [], "consolas": [], "accesorios": []}
+        cursor.execute("SELECT * FROM juegos")
+        juegos = [dict(row) for row in cursor.fetchall()]
         
-        if tipo in ["juegos", "todo"]:
-            cursor.execute("""
-                SELECT * FROM juegos 
-                WHERE nombre LIKE ? OR genero LIKE ? OR desarrollador LIKE ?
-            """, (query, query, query))
-            results["juegos"] = [dict(row) for row in cursor.fetchall()]
+        cursor.execute("SELECT * FROM consolas")
+        consolas = [dict(row) for row in cursor.fetchall()]
         
-        if tipo in ["consolas", "todo"]:
-            cursor.execute("""
-                SELECT * FROM consolas 
-                WHERE nombre LIKE ? OR fabricante LIKE ?
-            """, (query, query))
-            results["consolas"] = [dict(row) for row in cursor.fetchall()]
+        cursor.execute("SELECT * FROM accesorios")
+        accesorios = [dict(row) for row in cursor.fetchall()]
         
-        if tipo in ["accesorios", "todo"]:
-            cursor.execute("""
-                SELECT * FROM accesorios 
-                WHERE nombre LIKE ? OR tipo LIKE ?
-            """, (query, query))
-            results["accesorios"] = [dict(row) for row in cursor.fetchall()]
+        cursor.execute("""
+            SELECT c.*, j.nombre as juego_nombre, con.nombre as consola_nombre, a.nombre as accesorio_nombre
+            FROM comparaciones c
+            LEFT JOIN juegos j ON c.juego_id = j.id
+            LEFT JOIN consolas con ON c.consola_id = con.id
+            LEFT JOIN accesorios a ON c.accesorio_id = a.id
+            ORDER BY c.fecha_creacion DESC
+        """)
+        comparaciones = [dict(row) for row in cursor.fetchall()]
         
-        registrar_historial(
-            "Búsqueda",
-            f"Búsqueda realizada: '{q}' en {tipo}",
-            None,
-            None
-        )
-        return results
-    
+        return templates.TemplateResponse("comparaciones.html", {
+            "request": request,
+            "juegos": juegos,
+            "consolas": consolas,
+            "accesorios": accesorios,
+            "comparaciones": comparaciones
+        })
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
     finally:
         conn.close()
 
-@app.get("/api/historial", response_class=JSONResponse)
-async def obtener_historial(clave: str = Query(...)):
-    if clave != "0000":
-        raise HTTPException(status_code=403, detail="Clave incorrecta")
-    
+@app.post("/api/comparaciones", response_class=JSONResponse)
+async def crear_comparacion(
+    nombre: str = Form(...),
+    juego_id: int = Form(...),
+    consola_id: int = Form(...),
+    accesorio_id: Optional[int] = Form(None),
+    notas: Optional[str] = Form(None)
+):
     conn = get_db()
     cursor = conn.cursor()
     
     try:
-        cursor.execute("SELECT * FROM historial ORDER BY fecha DESC LIMIT 50")
-        historial = [dict(row) for row in cursor.fetchall()]
-        return {"historial": historial}
+        cursor.execute(
+            """
+            INSERT INTO comparaciones (nombre, juego_id, consola_id, accesorio_id, notas)
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            (nombre, juego_id, consola_id, accesorio_id, notas)
+        )
+        comparacion_id = cursor.lastrowid
+        
+        cursor.execute("SELECT nombre FROM juegos WHERE id = ?", (juego_id,))
+        juego_nombre = cursor.fetchone()['nombre']
+        cursor.execute("SELECT nombre FROM consolas WHERE id = ?", (consola_id,))
+        consola_nombre = cursor.fetchone()['nombre']
+        
+        detalles = f"Comparación creada: {juego_nombre} con {consola_nombre}"
+        if accesorio_id:
+            cursor.execute("SELECT nombre FROM accesorios WHERE id = ?", (accesorio_id,))
+            accesorio_nombre = cursor.fetchone()['nombre']
+            detalles += f" y {accesorio_nombre}"
+        
+        conn.commit()
+        registrar_historial(
+            "Comparación",
+            detalles,
+            "comparacion",
+            comparacion_id
+        )
+        return JSONResponse(
+            status_code=201,
+            content={"message": "Comparación creada con éxito", "id": comparacion_id}
+        )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        conn.rollback()
+        raise HTTPException(status_code=400, detail=str(e))
+    finally:
+        conn.close()
+
+@app.delete("/api/comparaciones/{comparacion_id}", response_class=JSONResponse)
+async def eliminar_comparacion(comparacion_id: int):
+    conn = get_db()
+    cursor = conn.cursor()
+    
+    try:
+        cursor.execute("""
+            SELECT c.nombre, j.nombre as juego_nombre, con.nombre as consola_nombre
+            FROM comparaciones c
+            JOIN juegos j ON c.juego_id = j.id
+            JOIN consolas con ON c.consola_id = con.id
+            WHERE c.id = ?
+        """, (comparacion_id,))
+        datos = cursor.fetchone()
+        
+        cursor.execute("DELETE FROM comparaciones WHERE id = ?", (comparacion_id,))
+        
+        conn.commit()
+        registrar_historial(
+            "Eliminación",
+            f"Comparación eliminada: {datos['nombre']} ({datos['juego_nombre']} con {datos['consola_nombre']})",
+            "comparacion",
+            comparacion_id
+        )
+        return {"message": "Comparación eliminada con éxito"}
+    except Exception as e:
+        conn.rollback()
+        raise HTTPException(status_code=400, detail=str(e))
     finally:
         conn.close()
 
