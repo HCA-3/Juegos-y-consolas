@@ -6,6 +6,22 @@
     <title>Comparaciones - API Videojuegos</title>
     <link rel="stylesheet" href="/static/style.css">
     <style>
+        .header-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .back-button {
+            background-color: var(--color-lighter-gray);
+            color: var(--color-light);
+            border: none;
+            padding: 10px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+        }
         .comparacion-item {
             background-color: var(--color-light-gray);
             padding: 15px;
@@ -101,7 +117,11 @@
 </head>
 <body>
     <div class="minecraft-container">
-        <h1 class="minecraft-title">Comparaciones de Videojuegos</h1>
+        <div class="header-container">
+            <a href="/" class="back-button">← Volver al Inicio</a>
+            <h1 class="minecraft-title">Comparaciones de Videojuegos</h1>
+            <div></div> <!-- Espacio vacío para alinear el título -->
+        </div>
 
         <div class="minecraft-section">
             <h2>➕ Crear Nueva Comparación</h2>
