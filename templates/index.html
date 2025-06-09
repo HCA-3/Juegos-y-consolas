@@ -48,6 +48,11 @@
             gap: 10px;
             margin-top: 10px;
         }
+        .search-box {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
     </style>
 </head>
 <body>
@@ -398,6 +403,7 @@
                     <option value="accesorios">Accesorios</option>
                 </select>
                 <button onclick="buscarRapida()" class="minecraft-button">Buscar</button>
+                <button onclick="verHistorial()" class="minecraft-button">📜 Ver Historial</button>
             </div>
             
             <div id="search-results" class="search-results">
@@ -445,6 +451,16 @@
         function ocultarEditarAccesorio(id) {
             document.getElementById(`accesorio-${id}`).style.display = 'flex';
             document.getElementById(`editar-accesorio-${id}`).style.display = 'none';
+        }
+
+        // Ver historial
+        function verHistorial() {
+            const clave = prompt("Ingrese la clave para ver el historial:");
+            if (clave === "0000") {
+                window.location.href = `/historial?clave=${clave}`;
+            } else if (clave !== null) {
+                alert("Clave incorrecta");
+            }
         }
 
         // Buscar

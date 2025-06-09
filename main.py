@@ -51,10 +51,16 @@ class ConsolaUpdate(ConsolaBase):
 class AccesorioBase(BaseModel):
     nombre: str
     tipo: str
-    compatible_con: str  # IDs de consolas separados por comas
+    compatible_con: List[int] = []
 
 class AccesorioUpdate(AccesorioBase):
     id: int
+
+class HistorialBase(BaseModel):
+    accion: str
+    detalles: str
+    tipo_objeto: str
+    objeto_id: Optional[int] = None
 
 # Inicializar base de datos
 def init_db():
@@ -94,7 +100,6 @@ def init_db():
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         nombre TEXT NOT NULL,
         tipo TEXT NOT NULL,
-        compatible_con TEXT,
         imagen TEXT,
         fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         fecha_actualizacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -115,6 +120,29 @@ def init_db():
     )
     """)
     
+    # Tabla de compatibilidad accesorios-consolas
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS accesorio_consola (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        accesorio_id INTEGER NOT NULL,
+        consola_id INTEGER NOT NULL,
+        FOREIGN KEY(accesorio_id) REFERENCES accesorios(id),
+        FOREIGN KEY(consola_id) REFERENCES consolas(id)
+    )
+    """)
+    
+    # Tabla de historial
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS historial (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        accion TEXT NOT NULL,
+        detalles TEXT NOT NULL,
+        tipo_objeto TEXT,
+        objeto_id INTEGER,
+        fecha TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """)
+    
     conn.commit()
     conn.close()
 
@@ -125,6 +153,23 @@ def get_db():
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     return conn
+
+def registrar_historial(accion: str, detalles: str, tipo_objeto: str = None, objeto_id: int = None):
+    conn = get_db()
+    cursor = conn.cursor()
+    try:
+        cursor.execute(
+            """
+            INSERT INTO historial (accion, detalles, tipo_objeto, objeto_id)
+            VALUES (?, ?, ?, ?)
+            """,
+            (accion, detalles, tipo_objeto, objeto_id)
+        )
+        conn.commit()
+    except Exception as e:
+        print(f"Error al registrar en historial: {e}")
+    finally:
+        conn.close()
 
 # Obtener datos completos para la vista
 def obtener_datos_completos():
@@ -168,22 +213,25 @@ def obtener_datos_completos():
     accesorios = []
     for accesorio in cursor.fetchall():
         accesorio_dict = dict(accesorio)
-        if accesorio_dict['compatible_con']:
-            cursor.execute("""
-                SELECT id, nombre FROM consolas 
-                WHERE id IN ({})
-            """.format(accesorio_dict['compatible_con']))
-            accesorio_dict['consolas_compatibles'] = [dict(row) for row in cursor.fetchall()]
-        else:
-            accesorio_dict['consolas_compatibles'] = []
+        cursor.execute("""
+            SELECT c.id, c.nombre FROM accesorio_consola ac
+            JOIN consolas c ON ac.consola_id = c.id
+            WHERE ac.accesorio_id = ?
+        """, (accesorio_dict['id'],))
+        accesorio_dict['consolas_compatibles'] = [dict(row) for row in cursor.fetchall()]
         accesorios.append(accesorio_dict)
+    
+    # Obtener historial
+    cursor.execute("SELECT * FROM historial ORDER BY fecha DESC LIMIT 50")
+    historial = [dict(row) for row in cursor.fetchall()]
     
     conn.close()
     
     return {
         "juegos": juegos_completos,
         "consolas": consolas,
-        "accesorios": accesorios
+        "accesorios": accesorios,
+        "historial": historial
     }
 
 # Rutas principales
@@ -191,6 +239,13 @@ def obtener_datos_completos():
 async def inicio(request: Request):
     datos = obtener_datos_completos()
     return templates.TemplateResponse("index.html", {"request": request, **datos})
+
+@app.get("/historial", response_class=HTMLResponse)
+async def ver_historial(request: Request, clave: str = Query(None)):
+    if clave != "0000":
+        raise HTTPException(status_code=403, detail="Clave incorrecta")
+    datos = obtener_datos_completos()
+    return templates.TemplateResponse("historial.html", {"request": request, "historial": datos["historial"]})
 
 # API para Juegos
 @app.post("/api/juegos", response_class=JSONResponse)
@@ -238,15 +293,27 @@ async def crear_juego(
         
         # Insertar relaciones con accesorios
         for accesorio_id in accesorios:
-            cursor.execute(
-                """
-                INSERT INTO compatibilidad (juego_id, consola_id, accesorio_id)
-                VALUES (?, (SELECT compatible_con FROM accesorios WHERE id = ?), ?)
-                """,
-                (juego_id, accesorio_id, accesorio_id)
-            )
+            # Obtener consolas compatibles con el accesorio
+            cursor.execute("SELECT consola_id FROM accesorio_consola WHERE accesorio_id = ?", (accesorio_id,))
+            consolas_accesorio = [row['consola_id'] for row in cursor.fetchall()]
+            
+            # Crear relación juego-accesorio para cada consola compatible
+            for consola_id in consolas_accesorio:
+                cursor.execute(
+                    """
+                    INSERT INTO compatibilidad (juego_id, consola_id, accesorio_id)
+                    VALUES (?, ?, ?)
+                    """,
+                    (juego_id, consola_id, accesorio_id)
+                )
         
         conn.commit()
+        registrar_historial(
+            "Creación",
+            f"Juego creado: {nombre}",
+            "juego",
+            juego_id
+        )
         return JSONResponse(
             status_code=201,
             content={"message": "Juego creado con éxito", "id": juego_id}
@@ -281,6 +348,10 @@ async def actualizar_juego(
     cursor = conn.cursor()
     
     try:
+        # Obtener nombre actual para el historial
+        cursor.execute("SELECT nombre FROM juegos WHERE id = ?", (juego_id,))
+        nombre_actual = cursor.fetchone()['nombre']
+        
         # Actualizar juego
         if imagen_url:
             cursor.execute(
@@ -316,15 +387,27 @@ async def actualizar_juego(
         
         # Insertar nuevas relaciones con accesorios
         for accesorio_id in accesorios:
-            cursor.execute(
-                """
-                INSERT INTO compatibilidad (juego_id, consola_id, accesorio_id)
-                VALUES (?, (SELECT compatible_con FROM accesorios WHERE id = ?), ?)
-                """,
-                (juego_id, accesorio_id, accesorio_id)
-            )
+            # Obtener consolas compatibles con el accesorio
+            cursor.execute("SELECT consola_id FROM accesorio_consola WHERE accesorio_id = ?", (accesorio_id,))
+            consolas_accesorio = [row['consola_id'] for row in cursor.fetchall()]
+            
+            # Crear relación juego-accesorio para cada consola compatible
+            for consola_id in consolas_accesorio:
+                cursor.execute(
+                    """
+                    INSERT INTO compatibilidad (juego_id, consola_id, accesorio_id)
+                    VALUES (?, ?, ?)
+                    """,
+                    (juego_id, consola_id, accesorio_id)
+                )
         
         conn.commit()
+        registrar_historial(
+            "Actualización",
+            f"Juego actualizado: {nombre_actual} -> {nombre}",
+            "juego",
+            juego_id
+        )
         return {"message": "Juego actualizado con éxito"}
     except Exception as e:
         conn.rollback()
@@ -338,6 +421,10 @@ async def eliminar_juego(juego_id: int):
     cursor = conn.cursor()
     
     try:
+        # Obtener nombre para el historial
+        cursor.execute("SELECT nombre FROM juegos WHERE id = ?", (juego_id,))
+        nombre = cursor.fetchone()['nombre']
+        
         # Eliminar relaciones primero
         cursor.execute("DELETE FROM compatibilidad WHERE juego_id = ?", (juego_id,))
         
@@ -345,6 +432,12 @@ async def eliminar_juego(juego_id: int):
         cursor.execute("DELETE FROM juegos WHERE id = ?", (juego_id,))
         
         conn.commit()
+        registrar_historial(
+            "Eliminación",
+            f"Juego eliminado: {nombre}",
+            "juego",
+            juego_id
+        )
         return {"message": "Juego eliminado con éxito"}
     except Exception as e:
         conn.rollback()
@@ -383,6 +476,12 @@ async def crear_consola(
         consola_id = cursor.lastrowid
         
         conn.commit()
+        registrar_historial(
+            "Creación",
+            f"Consola creada: {nombre}",
+            "consola",
+            consola_id
+        )
         return JSONResponse(
             status_code=201,
             content={"message": "Consola creada con éxito", "id": consola_id}
@@ -414,6 +513,10 @@ async def actualizar_consola(
     cursor = conn.cursor()
     
     try:
+        # Obtener nombre actual para el historial
+        cursor.execute("SELECT nombre FROM consolas WHERE id = ?", (consola_id,))
+        nombre_actual = cursor.fetchone()['nombre']
+        
         if imagen_url:
             cursor.execute(
                 """
@@ -434,6 +537,12 @@ async def actualizar_consola(
             )
         
         conn.commit()
+        registrar_historial(
+            "Actualización",
+            f"Consola actualizada: {nombre_actual} -> {nombre}",
+            "consola",
+            consola_id
+        )
         return {"message": "Consola actualizada con éxito"}
     except Exception as e:
         conn.rollback()
@@ -447,13 +556,24 @@ async def eliminar_consola(consola_id: int):
     cursor = conn.cursor()
     
     try:
+        # Obtener nombre para el historial
+        cursor.execute("SELECT nombre FROM consolas WHERE id = ?", (consola_id,))
+        nombre = cursor.fetchone()['nombre']
+        
         # Eliminar relaciones primero
         cursor.execute("DELETE FROM compatibilidad WHERE consola_id = ?", (consola_id,))
+        cursor.execute("DELETE FROM accesorio_consola WHERE consola_id = ?", (consola_id,))
         
         # Eliminar consola
         cursor.execute("DELETE FROM consolas WHERE id = ?", (consola_id,))
         
         conn.commit()
+        registrar_historial(
+            "Eliminación",
+            f"Consola eliminada: {nombre}",
+            "consola",
+            consola_id
+        )
         return {"message": "Consola eliminada con éxito"}
     except Exception as e:
         conn.rollback()
@@ -466,7 +586,7 @@ async def eliminar_consola(consola_id: int):
 async def crear_accesorio(
     nombre: str = Form(...),
     tipo: str = Form(...),
-    compatible_con: str = Form(...),
+    consolas_compatibles: List[int] = Form([]),
     imagen: UploadFile = File(None)
 ):
     # Guardar imagen
@@ -482,16 +602,33 @@ async def crear_accesorio(
     cursor = conn.cursor()
     
     try:
+        # Insertar accesorio
         cursor.execute(
             """
-            INSERT INTO accesorios (nombre, tipo, compatible_con, imagen)
-            VALUES (?, ?, ?, ?)
+            INSERT INTO accesorios (nombre, tipo, imagen)
+            VALUES (?, ?, ?)
             """,
-            (nombre, tipo, compatible_con, imagen_url)
+            (nombre, tipo, imagen_url)
         )
         accesorio_id = cursor.lastrowid
         
+        # Insertar relaciones con consolas
+        for consola_id in consolas_compatibles:
+            cursor.execute(
+                """
+                INSERT INTO accesorio_consola (accesorio_id, consola_id)
+                VALUES (?, ?)
+                """,
+                (accesorio_id, consola_id)
+            )
+        
         conn.commit()
+        registrar_historial(
+            "Creación",
+            f"Accesorio creado: {nombre}",
+            "accesorio",
+            accesorio_id
+        )
         return JSONResponse(
             status_code=201,
             content={"message": "Accesorio creado con éxito", "id": accesorio_id}
@@ -507,7 +644,7 @@ async def actualizar_accesorio(
     accesorio_id: int,
     nombre: str = Form(...),
     tipo: str = Form(...),
-    compatible_con: str = Form(...),
+    consolas_compatibles: List[int] = Form([]),
     imagen: UploadFile = File(None)
 ):
     # Guardar imagen si se proporciona
@@ -523,26 +660,47 @@ async def actualizar_accesorio(
     cursor = conn.cursor()
     
     try:
+        # Obtener nombre actual para el historial
+        cursor.execute("SELECT nombre FROM accesorios WHERE id = ?", (accesorio_id,))
+        nombre_actual = cursor.fetchone()['nombre']
+        
         if imagen_url:
             cursor.execute(
                 """
                 UPDATE accesorios 
-                SET nombre = ?, tipo = ?, compatible_con = ?, imagen = ?, fecha_actualizacion = CURRENT_TIMESTAMP
+                SET nombre = ?, tipo = ?, imagen = ?, fecha_actualizacion = CURRENT_TIMESTAMP
                 WHERE id = ?
                 """,
-                (nombre, tipo, compatible_con, imagen_url, accesorio_id)
+                (nombre, tipo, imagen_url, accesorio_id)
             )
         else:
             cursor.execute(
                 """
                 UPDATE accesorios 
-                SET nombre = ?, tipo = ?, compatible_con = ?, fecha_actualizacion = CURRENT_TIMESTAMP
+                SET nombre = ?, tipo = ?, fecha_actualizacion = CURRENT_TIMESTAMP
                 WHERE id = ?
                 """,
-                (nombre, tipo, compatible_con, accesorio_id)
+                (nombre, tipo, accesorio_id)
+            )
+        
+        # Actualizar relaciones con consolas
+        cursor.execute("DELETE FROM accesorio_consola WHERE accesorio_id = ?", (accesorio_id,))
+        for consola_id in consolas_compatibles:
+            cursor.execute(
+                """
+                INSERT INTO accesorio_consola (accesorio_id, consola_id)
+                VALUES (?, ?)
+                """,
+                (accesorio_id, consola_id)
             )
         
         conn.commit()
+        registrar_historial(
+            "Actualización",
+            f"Accesorio actualizado: {nombre_actual} -> {nombre}",
+            "accesorio",
+            accesorio_id
+        )
         return {"message": "Accesorio actualizado con éxito"}
     except Exception as e:
         conn.rollback()
@@ -556,13 +714,24 @@ async def eliminar_accesorio(accesorio_id: int):
     cursor = conn.cursor()
     
     try:
+        # Obtener nombre para el historial
+        cursor.execute("SELECT nombre FROM accesorios WHERE id = ?", (accesorio_id,))
+        nombre = cursor.fetchone()['nombre']
+        
         # Eliminar relaciones primero
         cursor.execute("DELETE FROM compatibilidad WHERE accesorio_id = ?", (accesorio_id,))
+        cursor.execute("DELETE FROM accesorio_consola WHERE accesorio_id = ?", (accesorio_id,))
         
         # Eliminar accesorio
         cursor.execute("DELETE FROM accesorios WHERE id = ?", (accesorio_id,))
         
         conn.commit()
+        registrar_historial(
+            "Eliminación",
+            f"Accesorio eliminado: {nombre}",
+            "accesorio",
+            accesorio_id
+        )
         return {"message": "Accesorio eliminado con éxito"}
     except Exception as e:
         conn.rollback()
@@ -570,7 +739,7 @@ async def eliminar_accesorio(accesorio_id: int):
     finally:
         conn.close()
 
-# API para Búsqueda - Versión corregida
+# API para Búsqueda
 @app.get("/api/buscar", response_class=JSONResponse)
 async def buscar(
     q: str = Query(..., min_length=1),
@@ -604,8 +773,32 @@ async def buscar(
             """, (query, query))
             results["accesorios"] = [dict(row) for row in cursor.fetchall()]
         
+        registrar_historial(
+            "Búsqueda",
+            f"Búsqueda realizada: '{q}' en {tipo}",
+            None,
+            None
+        )
         return results
     
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        conn.close()
+
+# API para Historial
+@app.get("/api/historial", response_class=JSONResponse)
+async def obtener_historial(clave: str = Query(...)):
+    if clave != "0000":
+        raise HTTPException(status_code=403, detail="Clave incorrecta")
+    
+    conn = get_db()
+    cursor = conn.cursor()
+    
+    try:
+        cursor.execute("SELECT * FROM historial ORDER BY fecha DESC LIMIT 50")
+        historial = [dict(row) for row in cursor.fetchall()]
+        return {"historial": historial}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
     finally:
