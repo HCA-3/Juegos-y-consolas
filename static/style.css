@@ -168,6 +168,27 @@ body {
     border-color: var(--color-primary);
 }
 
+/* Checkboxes y radios */
+.checkbox-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 5px;
+}
+
+.minecraft-checkbox {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    background-color: var(--color-dark-gray);
+    padding: 5px 10px;
+    border-radius: 3px;
+}
+
+.minecraft-checkbox input {
+    margin: 0;
+}
+
 /* Imágenes */
 .minecraft-img {
     max-width: 200px;
@@ -200,118 +221,15 @@ body {
     box-shadow: none;
 }
 
-/* Búsqueda */
-.search-box {
+/* Acciones de items */
+.item-actions {
     display: flex;
     gap: 10px;
-    margin-bottom: 20px;
-    flex-wrap: wrap;
+    align-self: flex-end;
 }
 
-.search-box .minecraft-input {
-    flex: 1;
-    min-width: 200px;
-}
-
-.search-box select.minecraft-input {
-    flex: 0 1 auto;
-}
-
-.search-results {
-    margin-top: 20px;
-    border-top: 2px solid var(--color-lighter-gray);
-    padding-top: 15px;
-}
-
-.result-section {
-    margin-bottom: 30px;
-}
-
-.result-section h3 {
-    color: var(--color-secondary);
-    margin-bottom: 15px;
-}
-
-.search-result-item {
+/* Formulario de edición */
+.editar-form {
     background-color: var(--color-light-gray);
     padding: 15px;
     margin-bottom: 15px;
-    border-radius: 4px;
-    transition: all 0.3s;
-}
-
-.search-result-item:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 5px 10px rgba(0, 0, 0, 0.2);
-}
-
-.search-result-item h4 {
-    color: var(--color-primary);
-    margin-top: 0;
-    margin-bottom: 10px;
-}
-
-.no-results {
-    color: var(--color-secondary);
-    text-align: center;
-    font-size: 1.2rem;
-}
-
-/* Tipos de resultados */
-.result-type-juegos {
-    border-left: 5px solid var(--color-primary);
-}
-
-.result-type-consolas {
-    border-left: 5px solid var(--color-secondary);
-}
-
-.result-type-accesorios {
-    border-left: 5px solid var(--color-accent);
-}
-
-/* Responsive */
-@media (max-width: 768px) {
-    .minecraft-form {
-        grid-template-columns: 1fr;
-    }
-    
-    .minecraft-button {
-        grid-column: span 1;
-    }
-    
-    .minecraft-nav {
-        flex-direction: column;
-    }
-    
-    .minecraft-nav-btn {
-        width: 100%;
-    }
-    
-    .minecraft-item {
-        flex-direction: column;
-    }
-    
-    .minecraft-img {
-        max-width: 100%;
-    }
-    
-    .search-box {
-        flex-direction: column;
-    }
-    
-    .search-box select.minecraft-input {
-        width: 100%;
-    }
-}
-
-/* Efectos especiales */
-@keyframes pulse {
-    0% { transform: scale(1); }
-    50% { transform: scale(1.05); }
-    100% { transform: scale(1); }
-}
-
-.minecraft-button:focus {
-    animation: pulse 0.5s ease-in-out;
-}

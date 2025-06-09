@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>API Minecraft de Videojuegos</title>
+    <title>API de Videojuegos</title>
     <link rel="stylesheet" href="/static/style.css">
     <style>
         @font-face {
@@ -48,26 +48,27 @@
             gap: 10px;
             margin-top: 10px;
         }
-        .search-box {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 15px;
+        .compatibilidad-tag {
+            background-color: var(--color-lighter-gray);
+            padding: 2px 5px;
+            border-radius: 3px;
+            margin-right: 5px;
         }
     </style>
 </head>
 <body>
     <div class="minecraft-container">
-        <h1 class="minecraft-title">API de Videojuegos (Minecraft Style)</h1>
+        <h1 class="minecraft-title">API de Videojuegos</h1>
         
-        <!-- Navegación -->
         <div class="minecraft-nav">
             <button onclick="mostrarSeccion('juegos')" class="minecraft-nav-btn">🎮 Juegos</button>
             <button onclick="mostrarSeccion('consolas')" class="minecraft-nav-btn">🕹️ Consolas</button>
             <button onclick="mostrarSeccion('accesorios')" class="minecraft-nav-btn">🎧 Accesorios</button>
             <button onclick="mostrarSeccion('busqueda')" class="minecraft-nav-btn">🔍 Buscar</button>
+            <a href="/comparaciones" class="minecraft-nav-btn">🔄 Comparaciones</a>
+            <a href="/historial?clave=0000" class="minecraft-nav-btn">📜 Historial</a>
         </div>
 
-        <!-- Sección de Juegos -->
         <div id="juegos-section" class="minecraft-section" style="display:none;">
             <h2>✨ Añadir Nuevo Juego:</h2>
             <form id="juego-form" class="minecraft-form" enctype="multipart/form-data">
@@ -152,7 +153,6 @@
                     </div>
                 </div>
 
-                <!-- Formulario de edición (oculto inicialmente) -->
                 <div id="editar-juego-{{ juego.id }}" class="editar-form" style="display:none;">
                     <h3>✏️ Editar Juego</h3>
                     <form class="minecraft-form" onsubmit="actualizarJuego(event, {{ juego.id }})" enctype="multipart/form-data">
@@ -215,7 +215,6 @@
             </div>
         </div>
 
-        <!-- Sección de Consolas -->
         <div id="consolas-section" class="minecraft-section" style="display:none;">
             <h2>🎮 Añadir Nueva Consola:</h2>
             <form id="consola-form" class="minecraft-form" enctype="multipart/form-data">
@@ -260,7 +259,6 @@
                     </div>
                 </div>
 
-                <!-- Formulario de edición (oculto inicialmente) -->
                 <div id="editar-consola-{{ consola.id }}" class="editar-form" style="display:none;">
                     <h3>✏️ Editar Consola</h3>
                     <form class="minecraft-form" onsubmit="actualizarConsola(event, {{ consola.id }})" enctype="multipart/form-data">
@@ -294,7 +292,6 @@
             </div>
         </div>
 
-        <!-- Sección de Accesorios -->
         <div id="accesorios-section" class="minecraft-section" style="display:none;">
             <h2>🎧 Añadir Nuevo Accesorio:</h2>
             <form id="accesorio-form" class="minecraft-form" enctype="multipart/form-data">
@@ -349,7 +346,6 @@
                     </div>
                 </div>
 
-                <!-- Formulario de edición (oculto inicialmente) -->
                 <div id="editar-accesorio-{{ accesorio.id }}" class="editar-form" style="display:none;">
                     <h3>✏️ Editar Accesorio</h3>
                     <form class="minecraft-form" onsubmit="actualizarAccesorio(event, {{ accesorio.id }})" enctype="multipart/form-data">
@@ -390,7 +386,6 @@
             </div>
         </div>
 
-        <!-- Sección de Búsqueda -->
         <div id="busqueda-section" class="minecraft-section">
             <h2>🔍 Buscar en el Catálogo</h2>
             
@@ -413,7 +408,6 @@
     </div>
 
     <script>
-        // Mostrar sección seleccionada
         function mostrarSeccion(seccion) {
             document.querySelectorAll('.minecraft-section').forEach(el => {
                 el.style.display = 'none';
@@ -421,13 +415,11 @@
             document.getElementById(`${seccion}-section`).style.display = 'block';
         }
 
-        // Mostrar formulario de edición
         function mostrarEditarJuego(id) {
             document.getElementById(`juego-${id}`).style.display = 'none';
             document.getElementById(`editar-juego-${id}`).style.display = 'block';
         }
 
-        // Ocultar formulario de edición
         function ocultarEditarJuego(id) {
             document.getElementById(`juego-${id}`).style.display = 'flex';
             document.getElementById(`editar-juego-${id}`).style.display = 'none';
@@ -453,17 +445,6 @@
             document.getElementById(`editar-accesorio-${id}`).style.display = 'none';
         }
 
-        // Ver historial
-        function verHistorial() {
-            const clave = prompt("Ingrese la clave para ver el historial:");
-            if (clave === "0000") {
-                window.location.href = `/historial?clave=${clave}`;
-            } else if (clave !== null) {
-                alert("Clave incorrecta");
-            }
-        }
-
-        // Buscar
         async function buscarRapida() {
             const query = document.getElementById('search-query').value.trim();
             const tipo = document.getElementById('search-type').value;
@@ -484,7 +465,6 @@
             }
         }
 
-        // Mostrar resultados de búsqueda
         function mostrarResultados(resultados) {
             const container = document.getElementById('search-results');
             container.innerHTML = '';
@@ -529,18 +509,15 @@
             }
         }
 
-        // Crear juego
         async function crearJuego(e) {
             e.preventDefault();
             const formData = new FormData(e.target);
             
-            // Obtener consolas y accesorios seleccionados
             const consolas = Array.from(document.getElementById('consolas-select').selectedOptions)
                                 .map(option => parseInt(option.value));
             const accesorios = Array.from(document.getElementById('accesorios-select').selectedOptions)
                                 .map(option => parseInt(option.value));
             
-            // Agregar al FormData
             consolas.forEach(id => formData.append('consolas', id.toString()));
             accesorios.forEach(id => formData.append('accesorios', id.toString()));
             
@@ -562,18 +539,15 @@
             }
         }
 
-        // Actualizar juego
         async function actualizarJuego(e, id) {
             e.preventDefault();
             const formData = new FormData(e.target);
             
-            // Obtener consolas y accesorios seleccionados
             const consolas = Array.from(document.getElementById(`editar-consolas-${id}`).selectedOptions)
                                 .map(option => parseInt(option.value));
             const accesorios = Array.from(document.getElementById(`editar-accesorios-${id}`).selectedOptions)
                                 .map(option => parseInt(option.value));
             
-            // Agregar al FormData
             consolas.forEach(id => formData.append('consolas', id.toString()));
             accesorios.forEach(id => formData.append('accesorios', id.toString()));
             
@@ -595,7 +569,6 @@
             }
         }
 
-        // Eliminar juego
         async function eliminarJuego(id) {
             if (!confirm('¿Estás seguro de eliminar este juego?')) return;
             
@@ -613,7 +586,6 @@
             }
         }
 
-        // Crear consola
         async function crearConsola(e) {
             e.preventDefault();
             const formData = new FormData(e.target);
@@ -636,7 +608,6 @@
             }
         }
 
-        // Actualizar consola
         async function actualizarConsola(e, id) {
             e.preventDefault();
             const formData = new FormData(e.target);
@@ -659,7 +630,6 @@
             }
         }
 
-        // Eliminar consola
         async function eliminarConsola(id) {
             if (!confirm('¿Estás seguro de eliminar esta consola?')) return;
             
@@ -677,17 +647,14 @@
             }
         }
 
-        // Crear accesorio
         async function crearAccesorio(e) {
             e.preventDefault();
             const formData = new FormData(e.target);
             
-            // Obtener consolas compatibles seleccionadas
             const consolas = Array.from(document.getElementById('compatible-con-select').selectedOptions)
                                 .map(option => parseInt(option.value));
             
-            // Agregar al FormData como string separado por comas
-            formData.append('compatible_con', consolas.join(','));
+            consolas.forEach(id => formData.append('consolas_compatibles', id.toString()));
             
             try {
                 const response = await fetch('/api/accesorios', {
@@ -707,17 +674,14 @@
             }
         }
 
-        // Actualizar accesorio
         async function actualizarAccesorio(e, id) {
             e.preventDefault();
             const formData = new FormData(e.target);
             
-            // Obtener consolas compatibles seleccionadas
             const consolas = Array.from(document.getElementById(`editar-compatible-con-${id}`).selectedOptions)
                                 .map(option => parseInt(option.value));
             
-            // Agregar al FormData como string separado por comas
-            formData.append('compatible_con', consolas.join(','));
+            consolas.forEach(id => formData.append('consolas_compatibles', id.toString()));
             
             try {
                 const response = await fetch(`/api/accesorios/${id}`, {
@@ -737,7 +701,6 @@
             }
         }
 
-        // Eliminar accesorio
         async function eliminarAccesorio(id) {
             if (!confirm('¿Estás seguro de eliminar este accesorio?')) return;
             
@@ -755,17 +718,22 @@
             }
         }
 
-        // Configurar formularios al cargar
+        function verHistorial() {
+            const clave = prompt("Ingrese la clave para ver el historial:");
+            if (clave === "0000") {
+                window.location.href = `/historial?clave=${clave}`;
+            } else if (clave !== null) {
+                alert("Clave incorrecta");
+            }
+        }
+
         document.addEventListener('DOMContentLoaded', () => {
-            // Mostrar sección de búsqueda por defecto
             mostrarSeccion('busqueda');
             
-            // Configurar búsqueda al presionar Enter
             document.getElementById('search-query').addEventListener('keypress', (e) => {
                 if (e.key === 'Enter') buscarRapida();
             });
             
-            // Configurar formularios
             document.getElementById('juego-form').addEventListener('submit', crearJuego);
             document.getElementById('consola-form').addEventListener('submit', crearConsola);
             document.getElementById('accesorio-form').addEventListener('submit', crearAccesorio);

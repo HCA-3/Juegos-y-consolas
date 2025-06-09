@@ -9,26 +9,21 @@ import os
 import uuid
 from datetime import datetime
 
-# Configuración inicial
 app = FastAPI(
-    title="API Minecraft de Videojuegos",
-    description="Sistema completo con búsqueda y gestión de juegos, consolas y accesorios"
+    title="API de Videojuegos",
+    description="Sistema completo con búsqueda, gestión y comparación de juegos, consolas y accesorios"
 )
 
-# Configuración de rutas
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_PATH = os.path.join(BASE_DIR, "database", "juegos.db")
 UPLOADS_DIR = os.path.join(BASE_DIR, "static", "uploads")
 
-# Crear carpetas necesarias
 os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
 os.makedirs(UPLOADS_DIR, exist_ok=True)
 
-# Configuración de FastAPI
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
-# Modelos Pydantic
 class JuegoBase(BaseModel):
     nombre: str
     genero: str
@@ -62,12 +57,24 @@ class HistorialBase(BaseModel):
     tipo_objeto: str
     objeto_id: Optional[int] = None
 
-# Inicializar base de datos
+class ComparacionBase(BaseModel):
+    nombre: str
+    juego_id: int
+    consola_id: int
+    accesorio_id: Optional[int] = None
+    notas: Optional[str] = None
+
+class ComparacionCreate(ComparacionBase):
+    pass
+
+class Comparacion(ComparacionBase):
+    id: int
+    fecha_creacion: datetime
+
 def init_db():
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     
-    # Tabla de juegos
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS juegos (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -81,7 +88,6 @@ def init_db():
     )
     """)
     
-    # Tabla de consolas
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS consolas (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -94,7 +100,6 @@ def init_db():
     )
     """)
     
-    # Tabla de accesorios
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS accesorios (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -106,7 +111,6 @@ def init_db():
     )
     """)
     
-    # Tabla de compatibilidad
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS compatibilidad (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -120,7 +124,6 @@ def init_db():
     )
     """)
     
-    # Tabla de compatibilidad accesorios-consolas
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS accesorio_consola (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -131,7 +134,6 @@ def init_db():
     )
     """)
     
-    # Tabla de historial
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS historial (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -143,12 +145,26 @@ def init_db():
     )
     """)
     
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS comparaciones (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        nombre TEXT NOT NULL,
+        juego_id INTEGER NOT NULL,
+        consola_id INTEGER NOT NULL,
+        accesorio_id INTEGER,
+        notas TEXT,
+        fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY(juego_id) REFERENCES juegos(id),
+        FOREIGN KEY(consola_id) REFERENCES consolas(id),
+        FOREIGN KEY(accesorio_id) REFERENCES accesorios(id)
+    )
+    """)
+    
     conn.commit()
     conn.close()
 
 init_db()
 
-# Funciones de base de datos
 def get_db():
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
@@ -159,10 +175,7 @@ def registrar_historial(accion: str, detalles: str, tipo_objeto: str = None, obj
     cursor = conn.cursor()
     try:
         cursor.execute(
-            """
-            INSERT INTO historial (accion, detalles, tipo_objeto, objeto_id)
-            VALUES (?, ?, ?, ?)
-            """,
+            "INSERT INTO historial (accion, detalles, tipo_objeto, objeto_id) VALUES (?, ?, ?, ?)",
             (accion, detalles, tipo_objeto, objeto_id)
         )
         conn.commit()
@@ -171,18 +184,15 @@ def registrar_historial(accion: str, detalles: str, tipo_objeto: str = None, obj
     finally:
         conn.close()
 
-# Obtener datos completos para la vista
 def obtener_datos_completos():
     conn = get_db()
     cursor = conn.cursor()
     
-    # Obtener juegos con sus consolas y accesorios
     cursor.execute("SELECT * FROM juegos")
     juegos = cursor.fetchall()
     
     juegos_completos = []
     for juego in juegos:
-        # Obtener consolas compatibles
         cursor.execute("""
             SELECT c.id, c.nombre FROM compatibilidad comp
             JOIN consolas c ON comp.consola_id = c.id
@@ -190,7 +200,6 @@ def obtener_datos_completos():
         """, (juego['id'],))
         consolas = [dict(row) for row in cursor.fetchall()]
         
-        # Obtener accesorios compatibles
         cursor.execute("""
             SELECT a.id, a.nombre FROM compatibilidad comp
             JOIN accesorios a ON comp.accesorio_id = a.id
@@ -204,11 +213,9 @@ def obtener_datos_completos():
             'accesorios': accesorios
         })
     
-    # Obtener todas las consolas
     cursor.execute("SELECT * FROM consolas")
     consolas = [dict(row) for row in cursor.fetchall()]
     
-    # Obtener todos los accesorios con sus consolas compatibles
     cursor.execute("SELECT * FROM accesorios")
     accesorios = []
     for accesorio in cursor.fetchall():
@@ -221,7 +228,16 @@ def obtener_datos_completos():
         accesorio_dict['consolas_compatibles'] = [dict(row) for row in cursor.fetchall()]
         accesorios.append(accesorio_dict)
     
-    # Obtener historial
+    cursor.execute("""
+        SELECT c.*, j.nombre as juego_nombre, con.nombre as consola_nombre, a.nombre as accesorio_nombre
+        FROM comparaciones c
+        LEFT JOIN juegos j ON c.juego_id = j.id
+        LEFT JOIN consolas con ON c.consola_id = con.id
+        LEFT JOIN accesorios a ON c.accesorio_id = a.id
+        ORDER BY c.fecha_creacion DESC
+    """)
+    comparaciones = [dict(row) for row in cursor.fetchall()]
+    
     cursor.execute("SELECT * FROM historial ORDER BY fecha DESC LIMIT 50")
     historial = [dict(row) for row in cursor.fetchall()]
     
@@ -231,14 +247,19 @@ def obtener_datos_completos():
         "juegos": juegos_completos,
         "consolas": consolas,
         "accesorios": accesorios,
+        "comparaciones": comparaciones,
         "historial": historial
     }
 
-# Rutas principales
 @app.get("/", response_class=HTMLResponse)
 async def inicio(request: Request):
     datos = obtener_datos_completos()
     return templates.TemplateResponse("index.html", {"request": request, **datos})
+
+@app.get("/comparaciones", response_class=HTMLResponse)
+async def ver_comparaciones(request: Request):
+    datos = obtener_datos_completos()
+    return templates.TemplateResponse("comparaciones.html", {"request": request, **datos})
 
 @app.get("/historial", response_class=HTMLResponse)
 async def ver_historial(request: Request, clave: str = Query(None)):
@@ -247,7 +268,107 @@ async def ver_historial(request: Request, clave: str = Query(None)):
     datos = obtener_datos_completos()
     return templates.TemplateResponse("historial.html", {"request": request, "historial": datos["historial"]})
 
-# API para Juegos
+@app.post("/api/comparaciones", response_class=JSONResponse)
+async def crear_comparacion(
+    nombre: str = Form(...),
+    juego_id: int = Form(...),
+    consola_id: int = Form(...),
+    accesorio_id: Optional[int] = Form(None),
+    notas: Optional[str] = Form(None)
+):
+    conn = get_db()
+    cursor = conn.cursor()
+    
+    try:
+        cursor.execute(
+            """
+            INSERT INTO comparaciones (nombre, juego_id, consola_id, accesorio_id, notas)
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            (nombre, juego_id, consola_id, accesorio_id, notas)
+        )
+        comparacion_id = cursor.lastrowid
+        
+        cursor.execute("SELECT nombre FROM juegos WHERE id = ?", (juego_id,))
+        juego_nombre = cursor.fetchone()['nombre']
+        cursor.execute("SELECT nombre FROM consolas WHERE id = ?", (consola_id,))
+        consola_nombre = cursor.fetchone()['nombre']
+        
+        detalles = f"Comparación creada: {juego_nombre} con {consola_nombre}"
+        if accesorio_id:
+            cursor.execute("SELECT nombre FROM accesorios WHERE id = ?", (accesorio_id,))
+            accesorio_nombre = cursor.fetchone()['nombre']
+            detalles += f" y {accesorio_nombre}"
+        
+        conn.commit()
+        registrar_historial(
+            "Comparación",
+            detalles,
+            "comparacion",
+            comparacion_id
+        )
+        return JSONResponse(
+            status_code=201,
+            content={"message": "Comparación creada con éxito", "id": comparacion_id}
+        )
+    except Exception as e:
+        conn.rollback()
+        raise HTTPException(status_code=400, detail=str(e))
+    finally:
+        conn.close()
+
+@app.get("/api/comparaciones", response_class=JSONResponse)
+async def obtener_comparaciones():
+    conn = get_db()
+    cursor = conn.cursor()
+    
+    try:
+        cursor.execute("""
+            SELECT c.*, j.nombre as juego_nombre, con.nombre as consola_nombre, a.nombre as accesorio_nombre
+            FROM comparaciones c
+            LEFT JOIN juegos j ON c.juego_id = j.id
+            LEFT JOIN consolas con ON c.consola_id = con.id
+            LEFT JOIN accesorios a ON c.accesorio_id = a.id
+            ORDER BY c.fecha_creacion DESC
+        """)
+        comparaciones = [dict(row) for row in cursor.fetchall()]
+        return {"comparaciones": comparaciones}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        conn.close()
+
+@app.delete("/api/comparaciones/{comparacion_id}", response_class=JSONResponse)
+async def eliminar_comparacion(comparacion_id: int):
+    conn = get_db()
+    cursor = conn.cursor()
+    
+    try:
+        cursor.execute("""
+            SELECT c.nombre, j.nombre as juego_nombre, con.nombre as consola_nombre
+            FROM comparaciones c
+            JOIN juegos j ON c.juego_id = j.id
+            JOIN consolas con ON c.consola_id = con.id
+            WHERE c.id = ?
+        """, (comparacion_id,))
+        datos = cursor.fetchone()
+        
+        cursor.execute("DELETE FROM comparaciones WHERE id = ?", (comparacion_id,))
+        
+        conn.commit()
+        registrar_historial(
+            "Eliminación",
+            f"Comparación eliminada: {datos['nombre']} ({datos['juego_nombre']} con {datos['consola_nombre']})",
+            "comparacion",
+            comparacion_id
+        )
+        return {"message": "Comparación eliminada con éxito"}
+    except Exception as e:
+        conn.rollback()
+        raise HTTPException(status_code=400, detail=str(e))
+    finally:
+        conn.close()
+
 @app.post("/api/juegos", response_class=JSONResponse)
 async def crear_juego(
     nombre: str = Form(...),
@@ -258,7 +379,6 @@ async def crear_juego(
     accesorios: List[int] = Form([]),
     imagen: UploadFile = File(None)
 ):
-    # Guardar imagen
     imagen_url = None
     if imagen:
         filename = f"{uuid.uuid4()}.{imagen.filename.split('.')[-1]}"
@@ -271,7 +391,6 @@ async def crear_juego(
     cursor = conn.cursor()
     
     try:
-        # Insertar juego
         cursor.execute(
             """
             INSERT INTO juegos (nombre, genero, año, desarrollador, imagen)
@@ -281,29 +400,19 @@ async def crear_juego(
         )
         juego_id = cursor.lastrowid
         
-        # Insertar relaciones con consolas
         for consola_id in consolas:
             cursor.execute(
-                """
-                INSERT INTO compatibilidad (juego_id, consola_id)
-                VALUES (?, ?)
-                """,
+                "INSERT INTO compatibilidad (juego_id, consola_id) VALUES (?, ?)",
                 (juego_id, consola_id)
             )
         
-        # Insertar relaciones con accesorios
         for accesorio_id in accesorios:
-            # Obtener consolas compatibles con el accesorio
             cursor.execute("SELECT consola_id FROM accesorio_consola WHERE accesorio_id = ?", (accesorio_id,))
             consolas_accesorio = [row['consola_id'] for row in cursor.fetchall()]
             
-            # Crear relación juego-accesorio para cada consola compatible
             for consola_id in consolas_accesorio:
                 cursor.execute(
-                    """
-                    INSERT INTO compatibilidad (juego_id, consola_id, accesorio_id)
-                    VALUES (?, ?, ?)
-                    """,
+                    "INSERT INTO compatibilidad (juego_id, consola_id, accesorio_id) VALUES (?, ?, ?)",
                     (juego_id, consola_id, accesorio_id)
                 )
         
@@ -335,7 +444,6 @@ async def actualizar_juego(
     accesorios: List[int] = Form([]),
     imagen: UploadFile = File(None)
 ):
-    # Guardar imagen si se proporciona
     imagen_url = None
     if imagen:
         filename = f"{uuid.uuid4()}.{imagen.filename.split('.')[-1]}"
@@ -348,11 +456,9 @@ async def actualizar_juego(
     cursor = conn.cursor()
     
     try:
-        # Obtener nombre actual para el historial
         cursor.execute("SELECT nombre FROM juegos WHERE id = ?", (juego_id,))
         nombre_actual = cursor.fetchone()['nombre']
         
-        # Actualizar juego
         if imagen_url:
             cursor.execute(
                 """
@@ -372,32 +478,21 @@ async def actualizar_juego(
                 (nombre, genero, año, desarrollador, juego_id)
             )
         
-        # Eliminar relaciones existentes
         cursor.execute("DELETE FROM compatibilidad WHERE juego_id = ?", (juego_id,))
         
-        # Insertar nuevas relaciones con consolas
         for consola_id in consolas:
             cursor.execute(
-                """
-                INSERT INTO compatibilidad (juego_id, consola_id)
-                VALUES (?, ?)
-                """,
+                "INSERT INTO compatibilidad (juego_id, consola_id) VALUES (?, ?)",
                 (juego_id, consola_id)
             )
         
-        # Insertar nuevas relaciones con accesorios
         for accesorio_id in accesorios:
-            # Obtener consolas compatibles con el accesorio
             cursor.execute("SELECT consola_id FROM accesorio_consola WHERE accesorio_id = ?", (accesorio_id,))
             consolas_accesorio = [row['consola_id'] for row in cursor.fetchall()]
             
-            # Crear relación juego-accesorio para cada consola compatible
             for consola_id in consolas_accesorio:
                 cursor.execute(
-                    """
-                    INSERT INTO compatibilidad (juego_id, consola_id, accesorio_id)
-                    VALUES (?, ?, ?)
-                    """,
+                    "INSERT INTO compatibilidad (juego_id, consola_id, accesorio_id) VALUES (?, ?, ?)",
                     (juego_id, consola_id, accesorio_id)
                 )
         
@@ -421,14 +516,10 @@ async def eliminar_juego(juego_id: int):
     cursor = conn.cursor()
     
     try:
-        # Obtener nombre para el historial
         cursor.execute("SELECT nombre FROM juegos WHERE id = ?", (juego_id,))
         nombre = cursor.fetchone()['nombre']
         
-        # Eliminar relaciones primero
         cursor.execute("DELETE FROM compatibilidad WHERE juego_id = ?", (juego_id,))
-        
-        # Eliminar juego
         cursor.execute("DELETE FROM juegos WHERE id = ?", (juego_id,))
         
         conn.commit()
@@ -445,7 +536,6 @@ async def eliminar_juego(juego_id: int):
     finally:
         conn.close()
 
-# API para Consolas
 @app.post("/api/consolas", response_class=JSONResponse)
 async def crear_consola(
     nombre: str = Form(...),
@@ -453,7 +543,6 @@ async def crear_consola(
     año_lanzamiento: Optional[int] = Form(None),
     imagen: UploadFile = File(None)
 ):
-    # Guardar imagen
     imagen_url = None
     if imagen:
         filename = f"{uuid.uuid4()}.{imagen.filename.split('.')[-1]}"
@@ -500,7 +589,6 @@ async def actualizar_consola(
     año_lanzamiento: Optional[int] = Form(None),
     imagen: UploadFile = File(None)
 ):
-    # Guardar imagen si se proporciona
     imagen_url = None
     if imagen:
         filename = f"{uuid.uuid4()}.{imagen.filename.split('.')[-1]}"
@@ -513,7 +601,6 @@ async def actualizar_consola(
     cursor = conn.cursor()
     
     try:
-        # Obtener nombre actual para el historial
         cursor.execute("SELECT nombre FROM consolas WHERE id = ?", (consola_id,))
         nombre_actual = cursor.fetchone()['nombre']
         
@@ -556,15 +643,11 @@ async def eliminar_consola(consola_id: int):
     cursor = conn.cursor()
     
     try:
-        # Obtener nombre para el historial
         cursor.execute("SELECT nombre FROM consolas WHERE id = ?", (consola_id,))
         nombre = cursor.fetchone()['nombre']
         
-        # Eliminar relaciones primero
         cursor.execute("DELETE FROM compatibilidad WHERE consola_id = ?", (consola_id,))
         cursor.execute("DELETE FROM accesorio_consola WHERE consola_id = ?", (consola_id,))
-        
-        # Eliminar consola
         cursor.execute("DELETE FROM consolas WHERE id = ?", (consola_id,))
         
         conn.commit()
@@ -581,7 +664,6 @@ async def eliminar_consola(consola_id: int):
     finally:
         conn.close()
 
-# API para Accesorios
 @app.post("/api/accesorios", response_class=JSONResponse)
 async def crear_accesorio(
     nombre: str = Form(...),
@@ -589,7 +671,6 @@ async def crear_accesorio(
     consolas_compatibles: List[int] = Form([]),
     imagen: UploadFile = File(None)
 ):
-    # Guardar imagen
     imagen_url = None
     if imagen:
         filename = f"{uuid.uuid4()}.{imagen.filename.split('.')[-1]}"
@@ -602,7 +683,6 @@ async def crear_accesorio(
     cursor = conn.cursor()
     
     try:
-        # Insertar accesorio
         cursor.execute(
             """
             INSERT INTO accesorios (nombre, tipo, imagen)
@@ -612,13 +692,9 @@ async def crear_accesorio(
         )
         accesorio_id = cursor.lastrowid
         
-        # Insertar relaciones con consolas
         for consola_id in consolas_compatibles:
             cursor.execute(
-                """
-                INSERT INTO accesorio_consola (accesorio_id, consola_id)
-                VALUES (?, ?)
-                """,
+                "INSERT INTO accesorio_consola (accesorio_id, consola_id) VALUES (?, ?)",
                 (accesorio_id, consola_id)
             )
         
@@ -647,7 +723,6 @@ async def actualizar_accesorio(
     consolas_compatibles: List[int] = Form([]),
     imagen: UploadFile = File(None)
 ):
-    # Guardar imagen si se proporciona
     imagen_url = None
     if imagen:
         filename = f"{uuid.uuid4()}.{imagen.filename.split('.')[-1]}"
@@ -660,7 +735,6 @@ async def actualizar_accesorio(
     cursor = conn.cursor()
     
     try:
-        # Obtener nombre actual para el historial
         cursor.execute("SELECT nombre FROM accesorios WHERE id = ?", (accesorio_id,))
         nombre_actual = cursor.fetchone()['nombre']
         
@@ -683,14 +757,10 @@ async def actualizar_accesorio(
                 (nombre, tipo, accesorio_id)
             )
         
-        # Actualizar relaciones con consolas
         cursor.execute("DELETE FROM accesorio_consola WHERE accesorio_id = ?", (accesorio_id,))
         for consola_id in consolas_compatibles:
             cursor.execute(
-                """
-                INSERT INTO accesorio_consola (accesorio_id, consola_id)
-                VALUES (?, ?)
-                """,
+                "INSERT INTO accesorio_consola (accesorio_id, consola_id) VALUES (?, ?)",
                 (accesorio_id, consola_id)
             )
         
@@ -714,15 +784,11 @@ async def eliminar_accesorio(accesorio_id: int):
     cursor = conn.cursor()
     
     try:
-        # Obtener nombre para el historial
         cursor.execute("SELECT nombre FROM accesorios WHERE id = ?", (accesorio_id,))
         nombre = cursor.fetchone()['nombre']
         
-        # Eliminar relaciones primero
         cursor.execute("DELETE FROM compatibilidad WHERE accesorio_id = ?", (accesorio_id,))
         cursor.execute("DELETE FROM accesorio_consola WHERE accesorio_id = ?", (accesorio_id,))
-        
-        # Eliminar accesorio
         cursor.execute("DELETE FROM accesorios WHERE id = ?", (accesorio_id,))
         
         conn.commit()
@@ -739,7 +805,6 @@ async def eliminar_accesorio(accesorio_id: int):
     finally:
         conn.close()
 
-# API para Búsqueda
 @app.get("/api/buscar", response_class=JSONResponse)
 async def buscar(
     q: str = Query(..., min_length=1),
@@ -786,7 +851,6 @@ async def buscar(
     finally:
         conn.close()
 
-# API para Historial
 @app.get("/api/historial", response_class=JSONResponse)
 async def obtener_historial(clave: str = Query(...)):
     if clave != "0000":

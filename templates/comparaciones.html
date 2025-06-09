@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Comparaciones - API Videojuegos</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <style>
+        .comparacion-item {
+            background-color: var(--color-light-gray);
+            padding: 15px;
+            margin-bottom: 15px;
+            border-radius: 4px;
+            border-left: 5px solid var(--color-accent);
+        }
+        .comparacion-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .comparacion-title {
+            color: var(--color-primary);
+            font-size: 1.2rem;
+            margin: 0;
+        }
+        .comparacion-meta {
+            color: var(--color-secondary);
+            font-size: 0.9rem;
+        }
+        .comparacion-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+        .comparacion-section {
+            background-color: var(--color-gray);
+            padding: 10px;
+            border-radius: 4px;
+        }
+        .comparacion-section h4 {
+            margin-top: 0;
+            color: var(--color-secondary);
+            border-bottom: 1px solid var(--color-lighter-gray);
+            padding-bottom: 5px;
+        }
+        .comparacion-notas {
+            grid-column: span 2;
+            background-color: var(--color-gray);
+            padding: 10px;
+            border-radius: 4px;
+            margin-top: 10px;
+        }
+        .comparacion-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        .form-comparacion {
+            background-color: var(--color-gray);
+            padding: 20px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+        }
+        .form-comparacion h3 {
+            margin-top: 0;
+            color: var(--color-secondary);
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            color: var(--color-light);
+        }
+        .form-control {
+            width: 100%;
+            padding: 10px;
+            background-color: var(--color-light-gray);
+            border: 2px solid var(--color-lighter-gray);
+            color: var(--color-light);
+            border-radius: 4px;
+        }
+        .btn {
+            padding: 10px 15px;
+            background-color: var(--color-lighter-gray);
+            color: var(--color-light);
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .btn-primary {
+            background-color: var(--color-accent);
+        }
+        .btn-danger {
+            background-color: #ff5555;
+        }
+    </style>
+</head>
+<body>
+    <div class="minecraft-container">
+        <h1 class="minecraft-title">Comparaciones de Videojuegos</h1>
+        
+        <div class="minecraft-nav">
+            <a href="/" class="minecraft-nav-btn">🏠 Inicio</a>
+            <a href="/comparaciones" class="minecraft-nav-btn active">🔄 Comparaciones</a>
+            <a href="/historial?clave=0000" class="minecraft-nav-btn">📜 Historial</a>
+        </div>
+
+        <div class="minecraft-section">
+            <h2>➕ Crear Nueva Comparación</h2>
+            
+            <div class="form-comparacion">
+                <form id="comparacion-form">
+                    <div class="form-group">
+                        <label for="comparacion-nombre">Nombre de la comparación:</label>
+                        <input type="text" id="comparacion-nombre" class="form-control" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="comparacion-juego">Juego:</label>
+                        <select id="comparacion-juego" class="form-control" required>
+                            <option value="">Seleccionar juego</option>
+                            {% for juego in juegos %}
+                            <option value="{{ juego.id }}">{{ juego.nombre }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="comparacion-consola">Consola:</label>
+                        <select id="comparacion-consola" class="form-control" required>
+                            <option value="">Seleccionar consola</option>
+                            {% for consola in consolas %}
+                            <option value="{{ consola.id }}">{{ consola.nombre }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="comparacion-accesorio">Accesorio (opcional):</label>
+                        <select id="comparacion-accesorio" class="form-control">
+                            <option value="">Seleccionar accesorio</option>
+                            {% for accesorio in accesorios %}
+                            <option value="{{ accesorio.id }}">{{ accesorio.nombre }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="comparacion-notas">Notas:</label>
+                        <textarea id="comparacion-notas" class="form-control" rows="3"></textarea>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary">Crear Comparación</button>
+                </form>
+            </div>
+
+            <h2>📜 Comparaciones Existentes</h2>
+            
+            <div id="comparaciones-container">
+                {% for comparacion in comparaciones %}
+                <div class="comparacion-item" id="comparacion-{{ comparacion.id }}">
+                    <div class="comparacion-header">
+                        <h3 class="comparacion-title">{{ comparacion.nombre }}</h3>
+                        <div class="comparacion-meta">{{ comparacion.fecha_creacion }}</div>
+                    </div>
+                    
+                    <div class="comparacion-content">
+                        <div class="comparacion-section">
+                            <h4>Juego</h4>
+                            <p>{{ comparacion.juego_nombre }}</p>
+                        </div>
+                        
+                        <div class="comparacion-section">
+                            <h4>Consola</h4>
+                            <p>{{ comparacion.consola_nombre }}</p>
+                        </div>
+                        
+                        {% if comparacion.accesorio_id %}
+                        <div class="comparacion-section">
+                            <h4>Accesorio</h4>
+                            <p>{{ comparacion.accesorio_nombre }}</p>
+                        </div>
+                        {% endif %}
+                        
+                        {% if comparacion.notas %}
+                        <div class="comparacion-notas">
+                            <h4>Notas</h4>
+                            <p>{{ comparacion.notas }}</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="comparacion-actions">
+                        <button onclick="eliminarComparacion({{ comparacion.id }})" class="btn btn-danger">Eliminar</button>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Crear comparación
+        document.getElementById('comparacion-form').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const nombre = document.getElementById('comparacion-nombre').value;
+            const juego_id = document.getElementById('comparacion-juego').value;
+            const consola_id = document.getElementById('comparacion-consola').value;
+            const accesorio_id = document.getElementById('comparacion-accesorio').value || null;
+            const notas = document.getElementById('comparacion-notas').value || null;
+            
+            try {
+                const response = await fetch('/api/comparaciones', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: new URLSearchParams({
+                        'nombre': nombre,
+                        'juego_id': juego_id,
+                        'consola_id': consola_id,
+                        'accesorio_id': accesorio_id || '',
+                        'notas': notas || ''
+                    })
+                });
+                
+                if (response.ok) {
+                    alert('Comparación creada con éxito!');
+                    location.reload();
+                } else {
+                    const error = await response.json();
+                    throw new Error(error.detail || 'Error desconocido');
+                }
+            } catch (error) {
+                alert('Error al crear comparación: ' + error.message);
+            }
+        });
+
+        // Eliminar comparación
+        async function eliminarComparacion(id) {
+            if (!confirm('¿Estás seguro de eliminar esta comparación?')) return;
+            
+            try {
+                const response = await fetch(`/api/comparaciones/${id}`, {
+                    method: 'DELETE'
+                });
+                
+                if (response.ok) {
+                    alert('Comparación eliminada con éxito!');
+                    location.reload();
+                }
+            } catch (error) {
+                alert('Error al eliminar comparación: ' + error.message);
+            }
+        }
+    </script>
+</body>
+</html>
