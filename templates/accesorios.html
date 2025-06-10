@@ -5,6 +5,76 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Accesorios - API Videojuegos</title>
     <link rel="stylesheet" href="/static/style.css">
+    <style>
+        /* Estilos para las imágenes */
+        .item-img {
+            max-width: 100%;
+            height: auto;
+            border: 2px solid var(--color-accent);
+            border-radius: 4px;
+            margin-top: 10px;
+        }
+        .no-image {
+            background-color: #333;
+            color: #ccc;
+            padding: 20px;
+            text-align: center;
+            border-radius: 4px;
+            margin-top: 10px;
+            font-style: italic;
+        }
+        /* Modal Styles */
+        .modal {
+            display: none; /* Hidden by default */
+            position: fixed; /* Stay in place */
+            z-index: 1; /* Sit on top */
+            left: 0;
+            top: 0;
+            width: 100%; /* Full width */
+            height: 100%; /* Full height */
+            overflow: auto; /* Enable scroll if needed */
+            background-color: rgba(0,0,0,0.4); /* Black w/ opacity */
+            padding-top: 60px;
+        }
+        .modal-content {
+            background-color: #2b2b2b;
+            margin: 5% auto; /* 15% from the top and centered */
+            padding: 20px;
+            border: 1px solid #888;
+            width: 80%; /* Could be more or less, depending on screen size */
+            max-width: 500px;
+            border-radius: 8px;
+            position: relative;
+            box-shadow: 0 4px 8px 0 rgba(0,0,0,0.2), 0 6px 20px 0 rgba(0,0,0,0.19);
+        }
+        .modal-content h3 {
+            color: var(--color-primary);
+            margin-top: 0;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+        }
+        .close:hover,
+        .close:focus {
+            color: var(--color-accent);
+            text-decoration: none;
+            cursor: pointer;
+        }
+        .form-control-file {
+            background-color: var(--color-light-gray);
+            color: var(--color-light);
+            border: 1px solid var(--color-lighter-gray);
+            border-radius: 4px;
+            padding: 8px;
+            width: calc(100% - 16px);
+            box-sizing: border-box;
+        }
+    </style>
 </head>
 <body>
     <div class="container">
@@ -15,6 +85,7 @@
                 <a href="/consolas" class="nav-link">Consolas</a>
                 <a href="/accesorios" class="nav-link active">Accesorios</a>
                 <a href="/comparaciones" class="nav-link">Comparaciones</a>
+                <a href="/historial?clave=0000" class="nav-link">Historial</a>
             </nav>
         </header>
 
@@ -22,18 +93,66 @@
             <section class="section">
                 <h2>Listado de Accesorios</h2>
                 <div id="accesorios-container" class="grid-container">
-                    <!-- Accesorios se cargarán aquí -->
-                </div>
+                    </div>
             </section>
 
             <section class="section">
                 <h2>Añadir Nuevo Accesorio</h2>
                 <form id="accesorio-form" class="form" enctype="multipart/form-data">
-                    <!-- Campos del formulario -->
+                    <div class="form-group">
+                        <label for="accesorio-nombre">Nombre del Accesorio:</label>
+                        <input type="text" id="accesorio-nombre" name="nombre" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="accesorio-tipo">Tipo:</label>
+                        <input type="text" id="accesorio-tipo" name="tipo" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="accesorio-compatible-con">Compatible con:</label>
+                        <input type="text" id="accesorio-compatible-con" name="compatible_con" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label for="accesorio-imagen">Imagen:</label>
+                        <input type="file" id="accesorio-imagen" name="imagen" accept="image/*" class="form-control-file">
+                        <img id="accesorio-imagen-preview" src="#" alt="Previsualización de Imagen" style="display: none; max-width: 100px; max-height: 100px; margin-top: 10px;">
+                    </div>
+                    <button type="submit" class="btn btn-primary">Añadir Accesorio</button>
                 </form>
             </section>
         </main>
     </div>
+
+    <div id="accesorio-edit-modal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h3>Editar Accesorio</h3>
+            <form id="accesorio-edit-form" class="form" enctype="multipart/form-data">
+                <div class="form-group">
+                    <label for="edit-accesorio-nombre">Nombre del Accesorio:</label>
+                    <input type="text" id="edit-accesorio-nombre" name="nombre" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label for="edit-accesorio-tipo">Tipo:</label>
+                    <input type="text" id="edit-accesorio-tipo" name="tipo" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label for="edit-accesorio-compatible-con">Compatible con:</label>
+                    <input type="text" id="edit-accesorio-compatible-con" name="compatible_con" class="form-control">
+                </div>
+                <div class="form-group">
+                    <label for="edit-accesorio-imagen">Nueva Imagen:</label>
+                    <input type="file" id="edit-accesorio-imagen" name="imagen" accept="image/*" class="form-control-file">
+                    <img id="edit-accesorio-imagen-preview" src="#" alt="Previsualización de Nueva Imagen" style="display: none; max-width: 100px; max-height: 100px; margin-top: 10px;">
+                </div>
+                <div class="form-group">
+                    <input type="checkbox" id="mantener-accesorio-imagen-checkbox" name="mantener_imagen_existente">
+                    <label for="mantener-accesorio-imagen-checkbox">Mantener imagen existente (si no se sube una nueva)</label>
+                </div>
+                <button type="submit" class="btn btn-primary">Actualizar Accesorio</button>
+            </form>
+        </div>
+    </div>
+
     <script src="/static/script.js"></script>
 </body>
 </html>

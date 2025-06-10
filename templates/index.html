@@ -3,9 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>API de Videojuegos</title>
+    <title>Juegos - API Videojuegos</title>
     <link rel="stylesheet" href="/static/style.css">
     <style>
+        /* Estilos específicos para la página de juegos, si los hay */
         @font-face {
             font-family: 'Minecraft';
             src: url('https://fonts.cdnfonts.com/css/minecraft-4');
@@ -37,795 +38,177 @@
             border-radius: 4px;
             margin-bottom: 10px;
         }
-        .select-dropdown[multiple] {
+        /* Estilos para las imágenes */
+        .item-img {
+            max-width: 100%;
             height: auto;
-            min-height: 100px;
-        }
-        .select-dropdown[multiple] option {
-            padding: 8px;
-            margin: 2px;
-            background-color: var(--color-light-gray);
-            border-radius: 3px;
-        }
-        .select-dropdown[multiple] option:checked {
-            background-color: var(--color-accent);
-            color: white;
-        }
-        .editar-form {
-            background-color: var(--color-gray);
-            padding: 20px;
-            margin-top: 15px;
-            border-radius: 6px;
-        }
-        .item-actions {
-            display: flex;
-            gap: 10px;
+            border: 2px solid var(--color-accent);
+            border-radius: 4px;
             margin-top: 10px;
         }
-        .compatibilidad-tag {
-            background-color: var(--color-lighter-gray);
-            padding: 2px 5px;
-            border-radius: 3px;
-            margin-right: 5px;
-        }
-        .historial-item {
-            background-color: var(--color-light-gray);
-            padding: 15px;
-            margin-bottom: 15px;
+        .no-image {
+            background-color: #333;
+            color: #ccc;
+            padding: 20px;
+            text-align: center;
             border-radius: 4px;
-            border-left: 5px solid var(--color-primary);
+            margin-top: 10px;
+            font-style: italic;
         }
-        .historial-fecha {
-            color: var(--color-secondary);
-            font-size: 0.9rem;
+        /* Modal Styles */
+        .modal {
+            display: none; /* Hidden by default */
+            position: fixed; /* Stay in place */
+            z-index: 1; /* Sit on top */
+            left: 0;
+            top: 0;
+            width: 100%; /* Full width */
+            height: 100%; /* Full height */
+            overflow: auto; /* Enable scroll if needed */
+            background-color: rgba(0,0,0,0.4); /* Black w/ opacity */
+            padding-top: 60px;
         }
-        .historial-accion {
-            font-weight: bold;
+        .modal-content {
+            background-color: #2b2b2b;
+            margin: 5% auto; /* 15% from the top and centered */
+            padding: 20px;
+            border: 1px solid #888;
+            width: 80%; /* Could be more or less, depending on screen size */
+            max-width: 500px;
+            border-radius: 8px;
+            position: relative;
+            box-shadow: 0 4px 8px 0 rgba(0,0,0,0.2), 0 6px 20px 0 rgba(0,0,0,0.19);
+        }
+        .modal-content h3 {
             color: var(--color-primary);
-        }
-        .historial-detalles {
-            margin-top: 5px;
-        }
-        .historial-tipo {
-            display: inline-block;
-            background-color: var(--color-lighter-gray);
-            padding: 2px 5px;
-            border-radius: 3px;
-            font-size: 0.8rem;
-            margin-left: 5px;
-        }
-        .search-box {
-            display: flex;
-            gap: 10px;
+            margin-top: 0;
             margin-bottom: 20px;
-            flex-wrap: wrap;
+            text-align: center;
+        }
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+        }
+        .close:hover,
+        .close:focus {
+            color: var(--color-accent);
+            text-decoration: none;
+            cursor: pointer;
+        }
+        .form-control-file {
+            background-color: var(--color-light-gray);
+            color: var(--color-light);
+            border: 1px solid var(--color-lighter-gray);
+            border-radius: 4px;
+            padding: 8px;
+            width: calc(100% - 16px);
+            box-sizing: border-box;
         }
     </style>
 </head>
 <body>
-    <div class="minecraft-container">
-        <h1 class="minecraft-title">API de Videojuegos</h1>
-        
-        <div class="minecraft-nav">
-            <button onclick="mostrarSeccion('juegos')" class="minecraft-nav-btn">🎮 Juegos</button>
-            <button onclick="mostrarSeccion('consolas')" class="minecraft-nav-btn">🕹️ Consolas</button>
-            <button onclick="mostrarSeccion('accesorios')" class="minecraft-nav-btn">🎧 Accesorios</button>
-            <button onclick="mostrarSeccion('busqueda')" class="minecraft-nav-btn">🔍 Buscar</button>
-            <a href="/comparaciones" class="minecraft-nav-btn">🔄 Comparaciones</a>
-        </div>
+    <div class="container">
+        <header class="header">
+            <h1>API de Videojuegos</h1>
+            <nav class="nav">
+                <a href="/" class="nav-link active">Juegos</a>
+                <a href="/consolas" class="nav-link">Consolas</a>
+                <a href="/accesorios" class="nav-link">Accesorios</a>
+                <a href="/comparaciones" class="nav-link">Comparaciones</a>
+                <a href="/historial?clave=0000" class="nav-link">Historial</a>
+            </nav>
+        </header>
 
-        <div id="juegos-section" class="minecraft-section" style="display:none;">
-            <h2>✨ Añadir Nuevo Juego:</h2>
-            <form id="juego-form" class="minecraft-form" enctype="multipart/form-data">
-                <div class="form-group">
-                    <label for="nombre-juego">Nombre:</label>
-                    <input type="text" id="nombre-juego" name="nombre" required class="minecraft-input">
-                </div>
-                
-                <div class="form-group">
-                    <label for="genero-juego">Género:</label>
-                    <input type="text" id="genero-juego" name="genero" required class="minecraft-input">
-                </div>
-                
-                <div class="form-group">
-                    <label for="año-juego">Año:</label>
-                    <input type="number" id="año-juego" name="año" class="minecraft-input">
-                </div>
-                
-                <div class="form-group">
-                    <label for="desarrollador-juego">Desarrollador:</label>
-                    <input type="text" id="desarrollador-juego" name="desarrollador" required class="minecraft-input">
-                </div>
-                
-                <div class="form-group">
-                    <label>Consolas compatibles:</label>
-                    <select id="consolas-select" multiple class="select-dropdown">
-                        {% for consola in consolas %}
-                        <option value="{{ consola.id }}">{{ consola.nombre }} ({{ consola.fabricante }})</option>
-                        {% endfor %}
+        <main class="main-content">
+            <section class="section">
+                <h2>Búsqueda Rápida</h2>
+                <div class="search-bar">
+                    <input type="text" id="search-query" placeholder="Buscar por nombre, género, fabricante, etc." class="form-control">
+                    <select id="search-type" class="form-control select-dropdown">
+                        <option value="all">Todos</option>
+                        <option value="juegos">Juegos</option>
+                        <option value="consolas">Consolas</option>
+                        <option value="accesorios">Accesorios</option>
                     </select>
+                    <button onclick="buscarRapida()" class="btn">Buscar</button>
                 </div>
-                
+                <div id="search-results" class="search-results-container">
+                    </div>
+            </section>
+
+            <section class="section">
+                <h2>Listado de Juegos</h2>
+                <div id="juegos-container" class="grid-container">
+                    </div>
+            </section>
+
+            <section class="section">
+                <h2>Añadir Nuevo Juego</h2>
+                <form id="juego-form" class="form" enctype="multipart/form-data">
+                    <div class="form-group">
+                        <label for="juego-nombre">Nombre del Juego:</label>
+                        <input type="text" id="juego-nombre" name="nombre" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="juego-genero">Género:</label>
+                        <input type="text" id="juego-genero" name="genero" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="juego-anio">Año:</label>
+                        <input type="number" id="juego-anio" name="año" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label for="juego-desarrollador">Desarrollador:</label>
+                        <input type="text" id="juego-desarrollador" name="desarrollador" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label for="juego-imagen">Imagen:</label>
+                        <input type="file" id="juego-imagen" name="imagen" accept="image/*" class="form-control-file">
+                        <img id="juego-imagen-preview" src="#" alt="Previsualización de Imagen" style="display: none; max-width: 100px; max-height: 100px; margin-top: 10px;">
+                    </div>
+                    <button type="submit" class="btn btn-primary">Añadir Juego</button>
+                </form>
+            </section>
+        </main>
+    </div>
+
+    <div id="juego-edit-modal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h3>Editar Juego</h3>
+            <form id="juego-edit-form" class="form" enctype="multipart/form-data">
                 <div class="form-group">
-                    <label>Accesorios compatibles:</label>
-                    <select id="accesorios-select" multiple class="select-dropdown">
-                        {% for accesorio in accesorios %}
-                        <option value="{{ accesorio.id }}">{{ accesorio.nombre }} ({{ accesorio.tipo }})</option>
-                        {% endfor %}
-                    </select>
+                    <label for="edit-juego-nombre">Nombre del Juego:</label>
+                    <input type="text" id="edit-juego-nombre" name="nombre" class="form-control" required>
                 </div>
-                
                 <div class="form-group">
-                    <label for="imagen-juego">Imagen:</label>
-                    <input type="file" id="imagen-juego" name="imagen" accept="image/*" class="minecraft-input">
+                    <label for="edit-juego-genero">Género:</label>
+                    <input type="text" id="edit-juego-genero" name="genero" class="form-control" required>
                 </div>
-                
-                <button type="submit" class="minecraft-button">⛏️ Crear Juego</button>
+                <div class="form-group">
+                    <label for="edit-juego-anio">Año:</label>
+                    <input type="number" id="edit-juego-anio" name="año" class="form-control">
+                </div>
+                <div class="form-group">
+                    <label for="edit-juego-desarrollador">Desarrollador:</label>
+                    <input type="text" id="edit-juego-desarrollador" name="desarrollador" class="form-control">
+                </div>
+                <div class="form-group">
+                    <label for="edit-juego-imagen">Nueva Imagen:</label>
+                    <input type="file" id="edit-juego-imagen" name="imagen" accept="image/*" class="form-control-file">
+                    <img id="edit-juego-imagen-preview" src="#" alt="Previsualización de Nueva Imagen" style="display: none; max-width: 100px; max-height: 100px; margin-top: 10px;">
+                </div>
+                <div class="form-group">
+                    <input type="checkbox" id="mantener-juego-imagen-checkbox" name="mantener_imagen_existente">
+                    <label for="mantener-juego-imagen-checkbox">Mantener imagen existente (si no se sube una nueva)</label>
+                </div>
+                <button type="submit" class="btn btn-primary">Actualizar Juego</button>
             </form>
-
-            <h2>📜 Tus Juegos:</h2>
-            <div id="juegos-list">
-                {% for juego in juegos %}
-                <div class="minecraft-item" id="juego-{{ juego.id }}">
-                    {% if juego.imagen %}
-                    <img src="{{ juego.imagen }}" alt="{{ juego.nombre }}" class="minecraft-img">
-                    {% endif %}
-                    <div class="item-info">
-                        <h3>{{ juego.nombre }}</h3>
-                        <p><strong>Género:</strong> {{ juego.genero }}</p>
-                        {% if juego.año %}<p><strong>Año:</strong> {{ juego.año }}</p>{% endif %}
-                        <p><strong>Desarrollador:</strong> {{ juego.desarrollador }}</p>
-                        
-                        {% if juego.consolas %}
-                        <p><strong>Consolas:</strong> 
-                            {% for consola in juego.consolas %}
-                            <span class="compatibilidad-tag">{{ consola.nombre }}</span>
-                            {% endfor %}
-                        </p>
-                        {% endif %}
-                        
-                        {% if juego.accesorios %}
-                        <p><strong>Accesorios:</strong> 
-                            {% for accesorio in juego.accesorios %}
-                            <span class="compatibilidad-tag">{{ accesorio.nombre }}</span>
-                            {% endfor %}
-                        </p>
-                        {% endif %}
-                    </div>
-                    <div class="item-actions">
-                        <button onclick="mostrarEditarJuego({{ juego.id }})" class="minecraft-button">✏️ Editar</button>
-                        <button onclick="eliminarJuego({{ juego.id }})" class="minecraft-button">🗑️ Eliminar</button>
-                    </div>
-                </div>
-
-                <div id="editar-juego-{{ juego.id }}" class="editar-form" style="display:none;">
-                    <h3>✏️ Editar Juego</h3>
-                    <form class="minecraft-form" onsubmit="actualizarJuego(event, {{ juego.id }})" enctype="multipart/form-data">
-                        <input type="hidden" name="juego_id" value="{{ juego.id }}">
-                        
-                        <div class="form-group">
-                            <label for="editar-nombre-{{ juego.id }}">Nombre:</label>
-                            <input type="text" id="editar-nombre-{{ juego.id }}" name="nombre" value="{{ juego.nombre }}" required class="minecraft-input">
-                        </div>
-                        
-                        <div class="form-group">
-                            <label for="editar-genero-{{ juego.id }}">Género:</label>
-                            <input type="text" id="editar-genero-{{ juego.id }}" name="genero" value="{{ juego.genero }}" required class="minecraft-input">
-                        </div>
-                        
-                        <div class="form-group">
-                            <label for="editar-año-{{ juego.id }}">Año:</label>
-                            <input type="number" id="editar-año-{{ juego.id }}" name="año" value="{{ juego.año }}" class="minecraft-input">
-                        </div>
-                        
-                        <div class="form-group">
-                            <label for="editar-desarrollador-{{ juego.id }}">Desarrollador:</label>
-                            <input type="text" id="editar-desarrollador-{{ juego.id }}" name="desarrollador" value="{{ juego.desarrollador }}" required class="minecraft-input">
-                        </div>
-                        
-                        <div class="form-group">
-                            <label>Consolas compatibles:</label>
-                            <select id="editar-consolas-{{ juego.id }}" multiple class="select-dropdown">
-                                {% for consola in consolas %}
-                                <option value="{{ consola.id }}" 
-                                    {% if consola.id in juego.consolas|map(attribute='id') %}selected{% endif %}>
-                                    {{ consola.nombre }} ({{ consola.fabricante }})
-                                </option>
-                                {% endfor %}
-                            </select>
-                        </div>
-                        
-                        <div class="form-group">
-                            <label>Accesorios compatibles:</label>
-                            <select id="editar-accesorios-{{ juego.id }}" multiple class="select-dropdown">
-                                {% for accesorio in accesorios %}
-                                <option value="{{ accesorio.id }}"
-                                    {% if accesorio.id in juego.accesorios|map(attribute='id') %}selected{% endif %}>
-                                    {{ accesorio.nombre }} ({{ accesorio.tipo }})
-                                </option>
-                                {% endfor %}
-                            </select>
-                        </div>
-                        
-                        <div class="form-group">
-                            <label for="editar-imagen-{{ juego.id }}">Imagen (dejar vacío para no cambiar):</label>
-                            <input type="file" id="editar-imagen-{{ juego.id }}" name="imagen" accept="image/*" class="minecraft-input">
-                        </div>
-                        
-                        <button type="submit" class="minecraft-button">💾 Guardar Cambios</button>
-                        <button type="button" onclick="ocultarEditarJuego({{ juego.id }})" class="minecraft-button">❌ Cancelar</button>
-                    </form>
-                </div>
-                {% endfor %}
-            </div>
-        </div>
-
-        <div id="consolas-section" class="minecraft-section" style="display:none;">
-            <h2>🎮 Añadir Nueva Consola:</h2>
-            <form id="consola-form" class="minecraft-form" enctype="multipart/form-data">
-                <div class="form-group">
-                    <label for="nombre-consola">Nombre:</label>
-                    <input type="text" id="nombre-consola" name="nombre" required class="minecraft-input">
-                </div>
-                
-                <div class="form-group">
-                    <label for="fabricante-consola">Fabricante:</label>
-                    <input type="text" id="fabricante-consola" name="fabricante" required class="minecraft-input">
-                </div>
-                
-                <div class="form-group">
-                    <label for="año-consola">Año de lanzamiento:</label>
-                    <input type="number" id="año-consola" name="año_lanzamiento" class="minecraft-input">
-                </div>
-                
-                <div class="form-group">
-                    <label for="imagen-consola">Imagen:</label>
-                    <input type="file" id="imagen-consola" name="imagen" accept="image/*" class="minecraft-input">
-                </div>
-                
-                <button type="submit" class="minecraft-button">🕹️ Crear Consola</button>
-            </form>
-
-            <h2>📜 Tus Consolas:</h2>
-            <div id="consolas-list">
-                {% for consola in consolas %}
-                <div class="minecraft-item" id="consola-{{ consola.id }}">
-                    {% if consola.imagen %}
-                    <img src="{{ consola.imagen }}" alt="{{ consola.nombre }}" class="minecraft-img">
-                    {% endif %}
-                    <div class="item-info">
-                        <h3>{{ consola.nombre }}</h3>
-                        <p><strong>Fabricante:</strong> {{ consola.fabricante }}</p>
-                        {% if consola.año_lanzamiento %}<p><strong>Año de lanzamiento:</strong> {{ consola.año_lanzamiento }}</p>{% endif %}
-                    </div>
-                    <div class="item-actions">
-                        <button onclick="mostrarEditarConsola({{ consola.id }})" class="minecraft-button">✏️ Editar</button>
-                        <button onclick="eliminarConsola({{ consola.id }})" class="minecraft-button">🗑️ Eliminar</button>
-                    </div>
-                </div>
-
-                <div id="editar-consola-{{ consola.id }}" class="editar-form" style="display:none;">
-                    <h3>✏️ Editar Consola</h3>
-                    <form class="minecraft-form" onsubmit="actualizarConsola(event, {{ consola.id }})" enctype="multipart/form-data">
-                        <input type="hidden" name="consola_id" value="{{ consola.id }}">
-                        
-                        <div class="form-group">
-                            <label for="editar-nombre-consola-{{ consola.id }}">Nombre:</label>
-                            <input type="text" id="editar-nombre-consola-{{ consola.id }}" name="nombre" value="{{ consola.nombre }}" required class="minecraft-input">
-                        </div>
-                        
-                        <div class="form-group">
-                            <label for="editar-fabricante-consola-{{ consola.id }}">Fabricante:</label>
-                            <input type="text" id="editar-fabricante-consola-{{ consola.id }}" name="fabricante" value="{{ consola.fabricante }}" required class="minecraft-input">
-                        </div>
-                        
-                        <div class="form-group">
-                            <label for="editar-año-consola-{{ consola.id }}">Año de lanzamiento:</label>
-                            <input type="number" id="editar-año-consola-{{ consola.id }}" name="año_lanzamiento" value="{{ consola.año_lanzamiento }}" class="minecraft-input">
-                        </div>
-                        
-                        <div class="form-group">
-                            <label for="editar-imagen-consola-{{ consola.id }}">Imagen (dejar vacío para no cambiar):</label>
-                            <input type="file" id="editar-imagen-consola-{{ consola.id }}" name="imagen" accept="image/*" class="minecraft-input">
-                        </div>
-                        
-                        <button type="submit" class="minecraft-button">💾 Guardar Cambios</button>
-                        <button type="button" onclick="ocultarEditarConsola({{ consola.id }})" class="minecraft-button">❌ Cancelar</button>
-                    </form>
-                </div>
-                {% endfor %}
-            </div>
-        </div>
-
-        <div id="accesorios-section" class="minecraft-section" style="display:none;">
-            <h2>🎧 Añadir Nuevo Accesorio:</h2>
-            <form id="accesorio-form" class="minecraft-form" enctype="multipart/form-data">
-                <div class="form-group">
-                    <label for="nombre-accesorio">Nombre:</label>
-                    <input type="text" id="nombre-accesorio" name="nombre" required class="minecraft-input">
-                </div>
-                
-                <div class="form-group">
-                    <label for="tipo-accesorio">Tipo:</label>
-                    <input type="text" id="tipo-accesorio" name="tipo" required class="minecraft-input">
-                </div>
-                
-                <div class="form-group">
-                    <label>Consolas compatibles:</label>
-                    <select id="compatible-con-select" multiple class="select-dropdown">
-                        {% for consola in consolas %}
-                        <option value="{{ consola.id }}">{{ consola.nombre }} ({{ consola.fabricante }})</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                
-                <div class="form-group">
-                    <label for="imagen-accesorio">Imagen:</label>
-                    <input type="file" id="imagen-accesorio" name="imagen" accept="image/*" class="minecraft-input">
-                </div>
-                
-                <button type="submit" class="minecraft-button">🎧 Crear Accesorio</button>
-            </form>
-
-            <h2>📜 Tus Accesorios:</h2>
-            <div id="accesorios-list">
-                {% for accesorio in accesorios %}
-                <div class="minecraft-item" id="accesorio-{{ accesorio.id }}">
-                    {% if accesorio.imagen %}
-                    <img src="{{ accesorio.imagen }}" alt="{{ accesorio.nombre }}" class="minecraft-img">
-                    {% endif %}
-                    <div class="item-info">
-                        <h3>{{ accesorio.nombre }}</h3>
-                        <p><strong>Tipo:</strong> {{ accesorio.tipo }}</p>
-                        {% if accesorio.consolas_compatibles %}
-                        <p><strong>Compatible con:</strong> 
-                            {% for consola in accesorio.consolas_compatibles %}
-                            <span class="compatibilidad-tag">{{ consola.nombre }}</span>
-                            {% endfor %}
-                        </p>
-                        {% endif %}
-                    </div>
-                    <div class="item-actions">
-                        <button onclick="mostrarEditarAccesorio({{ accesorio.id }})" class="minecraft-button">✏️ Editar</button>
-                        <button onclick="eliminarAccesorio({{ accesorio.id }})" class="minecraft-button">🗑️ Eliminar</button>
-                    </div>
-                </div>
-
-                <div id="editar-accesorio-{{ accesorio.id }}" class="editar-form" style="display:none;">
-                    <h3>✏️ Editar Accesorio</h3>
-                    <form class="minecraft-form" onsubmit="actualizarAccesorio(event, {{ accesorio.id }})" enctype="multipart/form-data">
-                        <input type="hidden" name="accesorio_id" value="{{ accesorio.id }}">
-                        
-                        <div class="form-group">
-                            <label for="editar-nombre-accesorio-{{ accesorio.id }}">Nombre:</label>
-                            <input type="text" id="editar-nombre-accesorio-{{ accesorio.id }}" name="nombre" value="{{ accesorio.nombre }}" required class="minecraft-input">
-                        </div>
-                        
-                        <div class="form-group">
-                            <label for="editar-tipo-accesorio-{{ accesorio.id }}">Tipo:</label>
-                            <input type="text" id="editar-tipo-accesorio-{{ accesorio.id }}" name="tipo" value="{{ accesorio.tipo }}" required class="minecraft-input">
-                        </div>
-                        
-                        <div class="form-group">
-                            <label>Consolas compatibles:</label>
-                            <select id="editar-compatible-con-{{ accesorio.id }}" multiple class="select-dropdown">
-                                {% for consola in consolas %}
-                                <option value="{{ consola.id }}"
-                                    {% if consola.id in accesorio.consolas_compatibles|map(attribute='id') %}selected{% endif %}>
-                                    {{ consola.nombre }} ({{ consola.fabricante }})
-                                </option>
-                                {% endfor %}
-                            </select>
-                        </div>
-                        
-                        <div class="form-group">
-                            <label for="editar-imagen-accesorio-{{ accesorio.id }}">Imagen (dejar vacío para no cambiar):</label>
-                            <input type="file" id="editar-imagen-accesorio-{{ accesorio.id }}" name="imagen" accept="image/*" class="minecraft-input">
-                        </div>
-                        
-                        <button type="submit" class="minecraft-button">💾 Guardar Cambios</button>
-                        <button type="button" onclick="ocultarEditarAccesorio({{ accesorio.id }})" class="minecraft-button">❌ Cancelar</button>
-                    </form>
-                </div>
-                {% endfor %}
-            </div>
-        </div>
-
-        <div id="busqueda-section" class="minecraft-section">
-            <h2>🔍 Buscar en el Catálogo</h2>
-            
-            <div class="search-box">
-                <input type="text" id="search-query" placeholder="Buscar por nombre, género, año..." class="minecraft-input">
-                <select id="search-type" class="minecraft-input">
-                    <option value="todo">Todo</option>
-                    <option value="juegos">Juegos</option>
-                    <option value="consolas">Consolas</option>
-                    <option value="accesorios">Accesorios</option>
-                </select>
-                <button onclick="buscarRapida()" class="minecraft-button">Buscar</button>
-                <button onclick="verHistorial()" class="minecraft-button">📜 Ver Historial</button>
-            </div>
-            
-            <div id="search-results" class="search-results">
-                <!-- Los resultados se mostrarán aquí -->
-            </div>
-
-            <div id="historial-container" style="display: none; margin-top: 20px;">
-                <h3>Historial de Actividades</h3>
-                <div id="historial-content"></div>
-            </div>
         </div>
     </div>
 
-    <script>
-        function mostrarSeccion(seccion) {
-            document.querySelectorAll('.minecraft-section').forEach(el => {
-                el.style.display = 'none';
-            });
-            const seccionMostrada = document.getElementById(`${seccion}-section`);
-            seccionMostrada.style.display = 'block';
-            
-            if (seccion !== 'busqueda') {
-                document.getElementById('historial-container').style.display = 'none';
-                document.getElementById('search-results').style.display = 'block';
-            }
-        }
-
-        function mostrarEditarJuego(id) {
-            document.getElementById(`editar-juego-${id}`).style.display = 'block';
-            document.getElementById(`juego-${id}`).scrollIntoView({ behavior: 'smooth' });
-        }
-
-        function ocultarEditarJuego(id) {
-            document.getElementById(`editar-juego-${id}`).style.display = 'none';
-        }
-
-        function mostrarEditarConsola(id) {
-            document.getElementById(`editar-consola-${id}`).style.display = 'block';
-            document.getElementById(`consola-${id}`).scrollIntoView({ behavior: 'smooth' });
-        }
-
-        function ocultarEditarConsola(id) {
-            document.getElementById(`editar-consola-${id}`).style.display = 'none';
-        }
-
-        function mostrarEditarAccesorio(id) {
-            document.getElementById(`editar-accesorio-${id}`).style.display = 'block';
-            document.getElementById(`accesorio-${id}`).scrollIntoView({ behavior: 'smooth' });
-        }
-
-        function ocultarEditarAccesorio(id) {
-            document.getElementById(`editar-accesorio-${id}`).style.display = 'none';
-        }
-
-        async function verHistorial() {
-            const clave = prompt("Ingrese la clave para ver el historial:");
-            if (clave === "0000") {
-                try {
-                    const response = await fetch(`/api/historial?clave=${clave}`);
-                    const data = await response.json();
-                    
-                    const container = document.getElementById('historial-content');
-                    container.innerHTML = '';
-                    
-                    if (data.historial && data.historial.length > 0) {
-                        data.historial.forEach(item => {
-                            const itemElement = document.createElement('div');
-                            itemElement.className = 'historial-item';
-                            itemElement.innerHTML = `
-                                <div>
-                                    <span class="historial-accion">${item.accion}</span>
-                                    ${item.tipo_objeto ? `<span class="historial-tipo">${item.tipo_objeto}</span>` : ''}
-                                </div>
-                                <div class="historial-detalles">${item.detalles}</div>
-                                <div class="historial-fecha">${item.fecha}</div>
-                            `;
-                            container.appendChild(itemElement);
-                        });
-                        
-                        document.getElementById('historial-container').style.display = 'block';
-                        document.getElementById('search-results').style.display = 'none';
-                    } else {
-                        alert('No hay actividades registradas en el historial');
-                    }
-                } catch (error) {
-                    alert('Error al cargar el historial: ' + error.message);
-                }
-            } else if (clave !== null) {
-                alert("Clave incorrecta");
-            }
-        }
-
-        async function buscarRapida() {
-            const query = document.getElementById('search-query').value.trim();
-            const tipo = document.getElementById('search-type').value;
-            
-            if (!query) {
-                alert('Por favor ingresa un término de búsqueda');
-                return;
-            }
-            
-            try {
-                const response = await fetch(`/api/buscar?q=${encodeURIComponent(query)}&tipo=${tipo}`);
-                const resultados = await response.json();
-                
-                mostrarResultados(resultados);
-            } catch (error) {
-                alert('Error al buscar: ' + error.message);
-                console.error(error);
-            }
-        }
-
-        function mostrarResultados(resultados) {
-            const container = document.getElementById('search-results');
-            container.innerHTML = '';
-            
-            if (!resultados || Object.keys(resultados).length === 0) {
-                container.innerHTML = '<p class="no-results">No se encontraron resultados</p>';
-                return;
-            }
-            
-            for (const [tipo, items] of Object.entries(resultados)) {
-                if (!items || !Array.isArray(items) || items.length === 0) continue;
-                
-                const tipoNombre = tipo === 'juegos' ? 'Juegos' : 
-                                 tipo === 'consolas' ? 'Consolas' : 'Accesorios';
-                
-                const section = document.createElement('div');
-                section.className = 'result-section';
-                section.innerHTML = `<h3>${tipoNombre}</h3>`;
-                
-                items.forEach(item => {
-                    const itemElement = document.createElement('div');
-                    itemElement.className = `search-result-item result-type-${tipo}`;
-                    
-                    let html = `<h4>${item.nombre}</h4>`;
-                    
-                    if (item.genero) html += `<p><strong>Género:</strong> ${item.genero}</p>`;
-                    if (item.año || item.año_lanzamiento) html += `<p><strong>Año:</strong> ${item.año || item.año_lanzamiento}</p>`;
-                    if (item.desarrollador) html += `<p><strong>Desarrollador:</strong> ${item.desarrollador}</p>`;
-                    if (item.fabricante) html += `<p><strong>Fabricante:</strong> ${item.fabricante}</p>`;
-                    if (item.tipo) html += `<p><strong>Tipo:</strong> ${item.tipo}</p>`;
-                    if (item.compatible_con) html += `<p><strong>Compatibilidad:</strong> ${item.compatible_con}</p>`;
-                    
-                    if (item.imagen) {
-                        html += `<img src="${item.imagen}" alt="${item.nombre}" class="minecraft-img">`;
-                    }
-                    
-                    itemElement.innerHTML = html;
-                    section.appendChild(itemElement);
-                });
-                
-                container.appendChild(section);
-            }
-        }
-
-        async function crearJuego(e) {
-            e.preventDefault();
-            const formData = new FormData(e.target);
-            
-            const consolas = Array.from(document.getElementById('consolas-select').selectedOptions)
-                                .map(option => option.value);
-            const accesorios = Array.from(document.getElementById('accesorios-select').selectedOptions)
-                                .map(option => option.value);
-            
-            consolas.forEach(id => formData.append('consolas', id));
-            accesorios.forEach(id => formData.append('accesorios', id));
-            
-            try {
-                const response = await fetch('/api/juegos', {
-                    method: 'POST',
-                    body: formData
-                });
-                
-                if (response.ok) {
-                    alert('Juego creado con éxito!');
-                    location.reload();
-                } else {
-                    const error = await response.json();
-                    throw new Error(error.detail || 'Error desconocido');
-                }
-            } catch (error) {
-                alert('Error al crear juego: ' + error.message);
-            }
-        }
-
-        async function actualizarJuego(e, id) {
-            e.preventDefault();
-            const formData = new FormData(e.target);
-            
-            const consolas = Array.from(document.getElementById(`editar-consolas-${id}`).selectedOptions)
-                                .map(option => option.value);
-            const accesorios = Array.from(document.getElementById(`editar-accesorios-${id}`).selectedOptions)
-                                .map(option => option.value);
-            
-            consolas.forEach(id => formData.append('consolas', id));
-            accesorios.forEach(id => formData.append('accesorios', id));
-            
-            try {
-                const response = await fetch(`/api/juegos/${id}`, {
-                    method: 'PUT',
-                    body: formData
-                });
-                
-                if (response.ok) {
-                    alert('Juego actualizado con éxito!');
-                    location.reload();
-                } else {
-                    const error = await response.json();
-                    throw new Error(error.detail || 'Error desconocido');
-                }
-            } catch (error) {
-                alert('Error al actualizar juego: ' + error.message);
-            }
-        }
-
-        async function eliminarJuego(id) {
-            if (!confirm('¿Estás seguro de eliminar este juego?')) return;
-            
-            try {
-                const response = await fetch(`/api/juegos/${id}`, {
-                    method: 'DELETE'
-                });
-                
-                if (response.ok) {
-                    alert('Juego eliminado con éxito!');
-                    location.reload();
-                }
-            } catch (error) {
-                alert('Error al eliminar juego: ' + error.message);
-            }
-        }
-
-        async function crearConsola(e) {
-            e.preventDefault();
-            const formData = new FormData(e.target);
-            
-            try {
-                const response = await fetch('/api/consolas', {
-                    method: 'POST',
-                    body: formData
-                });
-                
-                if (response.ok) {
-                    alert('Consola creada con éxito!');
-                    location.reload();
-                } else {
-                    const error = await response.json();
-                    throw new Error(error.detail || 'Error desconocido');
-                }
-            } catch (error) {
-                alert('Error al crear consola: ' + error.message);
-            }
-        }
-
-        async function actualizarConsola(e, id) {
-            e.preventDefault();
-            const formData = new FormData(e.target);
-            
-            try {
-                const response = await fetch(`/api/consolas/${id}`, {
-                    method: 'PUT',
-                    body: formData
-                });
-                
-                if (response.ok) {
-                    alert('Consola actualizada con éxito!');
-                    location.reload();
-                } else {
-                    const error = await response.json();
-                    throw new Error(error.detail || 'Error desconocido');
-                }
-            } catch (error) {
-                alert('Error al actualizar consola: ' + error.message);
-            }
-        }
-
-        async function eliminarConsola(id) {
-            if (!confirm('¿Estás seguro de eliminar esta consola?')) return;
-            
-            try {
-                const response = await fetch(`/api/consolas/${id}`, {
-                    method: 'DELETE'
-                });
-                
-                if (response.ok) {
-                    alert('Consola eliminada con éxito!');
-                    location.reload();
-                }
-            } catch (error) {
-                alert('Error al eliminar consola: ' + error.message);
-            }
-        }
-
-        async function crearAccesorio(e) {
-            e.preventDefault();
-            const formData = new FormData(e.target);
-            
-            const consolas = Array.from(document.getElementById('compatible-con-select').selectedOptions)
-                                .map(option => option.value);
-            
-            consolas.forEach(id => formData.append('consolas_compatibles', id));
-            
-            try {
-                const response = await fetch('/api/accesorios', {
-                    method: 'POST',
-                    body: formData
-                });
-                
-                if (response.ok) {
-                    alert('Accesorio creado con éxito!');
-                    location.reload();
-                } else {
-                    const error = await response.json();
-                    throw new Error(error.detail || 'Error desconocido');
-                }
-            } catch (error) {
-                alert('Error al crear accesorio: ' + error.message);
-            }
-        }
-
-        async function actualizarAccesorio(e, id) {
-            e.preventDefault();
-            const formData = new FormData(e.target);
-            
-            const consolas = Array.from(document.getElementById(`editar-compatible-con-${id}`).selectedOptions)
-                                .map(option => option.value);
-            
-            consolas.forEach(id => formData.append('consolas_compatibles', id));
-            
-            try {
-                const response = await fetch(`/api/accesorios/${id}`, {
-                    method: 'PUT',
-                    body: formData
-                });
-                
-                if (response.ok) {
-                    alert('Accesorio actualizado con éxito!');
-                    location.reload();
-                } else {
-                    const error = await response.json();
-                    throw new Error(error.detail || 'Error desconocido');
-                }
-            } catch (error) {
-                alert('Error al actualizar accesorio: ' + error.message);
-            }
-        }
-
-        async function eliminarAccesorio(id) {
-            if (!confirm('¿Estás seguro de eliminar este accesorio?')) return;
-            
-            try {
-                const response = await fetch(`/api/accesorios/${id}`, {
-                    method: 'DELETE'
-                });
-                
-                if (response.ok) {
-                    alert('Accesorio eliminado con éxito!');
-                    location.reload();
-                }
-            } catch (error) {
-                alert('Error al eliminar accesorio: ' + error.message);
-            }
-        }
-
-        document.addEventListener('DOMContentLoaded', () => {
-            mostrarSeccion('busqueda');
-            
-            document.getElementById('search-query').addEventListener('keypress', (e) => {
-                if (e.key === 'Enter') buscarRapida();
-            });
-            
-            if (document.getElementById('juego-form')) {
-                document.getElementById('juego-form').addEventListener('submit', crearJuego);
-            }
-            if (document.getElementById('consola-form')) {
-                document.getElementById('consola-form').addEventListener('submit', crearConsola);
-            }
-            if (document.getElementById('accesorio-form')) {
-                document.getElementById('accesorio-form').addEventListener('submit', crearAccesorio);
-            }
-        });
-    </script>
+    <script src="/static/script.js"></script>
 </body>
 </html>
