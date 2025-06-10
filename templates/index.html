@@ -37,6 +37,20 @@
             border-radius: 4px;
             margin-bottom: 10px;
         }
+        .select-dropdown[multiple] {
+            height: auto;
+            min-height: 100px;
+        }
+        .select-dropdown[multiple] option {
+            padding: 8px;
+            margin: 2px;
+            background-color: var(--color-light-gray);
+            border-radius: 3px;
+        }
+        .select-dropdown[multiple] option:checked {
+            background-color: var(--color-accent);
+            color: white;
+        }
         .editar-form {
             background-color: var(--color-gray);
             padding: 20px;
@@ -457,6 +471,33 @@
             }
         }
 
+        function mostrarEditarJuego(id) {
+            document.getElementById(`editar-juego-${id}`).style.display = 'block';
+            document.getElementById(`juego-${id}`).scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function ocultarEditarJuego(id) {
+            document.getElementById(`editar-juego-${id}`).style.display = 'none';
+        }
+
+        function mostrarEditarConsola(id) {
+            document.getElementById(`editar-consola-${id}`).style.display = 'block';
+            document.getElementById(`consola-${id}`).scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function ocultarEditarConsola(id) {
+            document.getElementById(`editar-consola-${id}`).style.display = 'none';
+        }
+
+        function mostrarEditarAccesorio(id) {
+            document.getElementById(`editar-accesorio-${id}`).style.display = 'block';
+            document.getElementById(`accesorio-${id}`).scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function ocultarEditarAccesorio(id) {
+            document.getElementById(`editar-accesorio-${id}`).style.display = 'none';
+        }
+
         async function verHistorial() {
             const clave = prompt("Ingrese la clave para ver el historial:");
             if (clave === "0000") {
@@ -564,12 +605,12 @@
             const formData = new FormData(e.target);
             
             const consolas = Array.from(document.getElementById('consolas-select').selectedOptions)
-                                .map(option => parseInt(option.value));
+                                .map(option => option.value);
             const accesorios = Array.from(document.getElementById('accesorios-select').selectedOptions)
-                                .map(option => parseInt(option.value));
+                                .map(option => option.value);
             
-            consolas.forEach(id => formData.append('consolas', id.toString()));
-            accesorios.forEach(id => formData.append('accesorios', id.toString()));
+            consolas.forEach(id => formData.append('consolas', id));
+            accesorios.forEach(id => formData.append('accesorios', id));
             
             try {
                 const response = await fetch('/api/juegos', {
@@ -594,12 +635,12 @@
             const formData = new FormData(e.target);
             
             const consolas = Array.from(document.getElementById(`editar-consolas-${id}`).selectedOptions)
-                                .map(option => parseInt(option.value));
+                                .map(option => option.value);
             const accesorios = Array.from(document.getElementById(`editar-accesorios-${id}`).selectedOptions)
-                                .map(option => parseInt(option.value));
+                                .map(option => option.value);
             
-            consolas.forEach(id => formData.append('consolas', id.toString()));
-            accesorios.forEach(id => formData.append('accesorios', id.toString()));
+            consolas.forEach(id => formData.append('consolas', id));
+            accesorios.forEach(id => formData.append('accesorios', id));
             
             try {
                 const response = await fetch(`/api/juegos/${id}`, {
@@ -702,9 +743,9 @@
             const formData = new FormData(e.target);
             
             const consolas = Array.from(document.getElementById('compatible-con-select').selectedOptions)
-                                .map(option => parseInt(option.value));
+                                .map(option => option.value);
             
-            consolas.forEach(id => formData.append('consolas_compatibles', id.toString()));
+            consolas.forEach(id => formData.append('consolas_compatibles', id));
             
             try {
                 const response = await fetch('/api/accesorios', {
@@ -729,9 +770,9 @@
             const formData = new FormData(e.target);
             
             const consolas = Array.from(document.getElementById(`editar-compatible-con-${id}`).selectedOptions)
-                                .map(option => parseInt(option.value));
+                                .map(option => option.value);
             
-            consolas.forEach(id => formData.append('consolas_compatibles', id.toString()));
+            consolas.forEach(id => formData.append('consolas_compatibles', id));
             
             try {
                 const response = await fetch(`/api/accesorios/${id}`, {
